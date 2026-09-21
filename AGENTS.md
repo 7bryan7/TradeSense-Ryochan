@@ -4,9 +4,17 @@
 
 Build the scoped TradeSense prototype in [README.md](README.md): RYO market research → evidence-based LLM decision → paper-only simulation → a dashboard explaining what changed and why.
 
-**Selected tracks:** RYO-CHAN Hackathon 2026 Track 01 — Autonomous Agents and Track 02 — Dashboards & Interfaces, as described in the user's brief. Official event requirements and integration contracts remain unverified.
+**Selected tracks:** RYO-CHAN Hackathon 2026 Track 01 — Autonomous Agents and Track 02 — Dashboards & Interfaces ($3,500 prize pool).
 
-At initial drafting on September 20, 2026, this workspace contains documentation only. Architecture, routes, scripts, configuration, and tests in README.md are proposed contracts. Inspect the actual checkout before using them. Never report a planned integration, command, deployed app, or unrun test as working.
+**Current Workspace Status (September 21, 2026):**
+- Frontend terminal is fully scaffolded and operational using React 18, Vite 6, TypeScript 5.7, and Tailwind CSS 3.4.
+- Landing page features high-fidelity video backgrounds, luxury Kevin typography tokens (`PPNeueMontreal`, `PPNeueBit`), and a cleaned 5-stage pipeline.
+- The dashboard has been overhauled specifically for **Track 02: Dashboards & Interfaces** into a pro 2-column trading terminal:
+  - Left panel (62%): Candlestick & volume chart with TP/SL levels + integrated 10 bps paper trade execution terminal.
+  - Right panel (38%): Unified `AICoPilotDossier` answering "what changed and why it matters" in under 30 seconds with calibrated confidence, evidence citations, and safety invariant stamps.
+  - Bottom console: Tabbed drawer for paper portfolio ($10k equity), execution audit log, and risk policy checks.
+  - Full keyboard-first accessibility: `1`-`5` for asset selection, `R` for instant market scan, `D` for data mode toggle, `S` for scenario switcher, and `?` for the keyboard HUD.
+  - Header footprint optimized (~740px) for seamless laptop viewing without collision. All AI badge clutter removed from sidebar and topbar.
 
 This file guides future work within the user's active task. A request to create or review documentation does not authorize scaffolding, dependency installation, live inference, scheduled jobs, deployment, or publication.
 
