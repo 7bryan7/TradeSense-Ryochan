@@ -153,3 +153,24 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - External side effects: None; local UI cleanup only.
 - Outcome / next step: Branding cleanly unified as "TradeSense" across all navigation and layout components. Ready for repository staging and git push.
 
+### 20260922T170500Z-workspace-cleanup-and-audit — Remove redundant external repos, dead assets, and unused components
+
+- Recorded at: 2026-09-22 17:05:00 UTC.
+- Agent: Antigravity primary software engineering agent.
+- Task: Remove all unwanted folders, assets, and files across the workspace, and update documentation in AGENTS.md and HISTORY.md.
+- Actions:
+  - Removed external repository folders at workspace root: `ethonline-main` (ETHOnline 2025 Intellitrade) and `kevin_frontend-main` (Unifi Protocol reference clone).
+  - Deleted orphaned Kevin/Unifi components in `TradeSense-Ryochan/src/components/kevin/` (12 files) and unused stylesheets in `TradeSense-Ryochan/src/styles/kevin/` (5 files).
+  - Deleted 10 orphaned landing section files in `src/components/landing/` (`AIReasoningSection.tsx`, `EvidenceSourcesSection.tsx`, `FooterSection.tsx`, `HeroSection.tsx`, `HistorySection.tsx`, `HowItWorksSection.tsx`, `MarketIntelligenceSection.tsx`, `PortfolioSection.tsx`, `RecurringScanSection.tsx`, `SimulationSection.tsx`), retaining only `LandingNav.tsx`.
+  - Deleted 4 superseded/unimported dashboard components in `src/components/dashboard/` (`WhatChanged30sBanner.tsx`, `MarketOverview.tsx`, `RecurringScanCard.tsx`, `TokenMetricsCard.tsx`).
+  - Purged dead public assets: `public/vendor/` (11 jQuery/GSAP/Swiper files), `public/assets/json/` (7 Lottie animations), `public/assets/img/` (23 unreferenced images + pipeline placeholders), and `public/assets/fonts/` (2 unused font files). Retained `public/logo.svg` and active hero/pillar videos (`public/assets/video/309316_medium.mp4` and `public/assets/video/Video Project 1.mp4`).
+  - Cleaned `index.html`: removed legacy font preloads and removed `data-barba="wrapper"` attribute.
+  - Updated workspace architecture notes in `AGENTS.md`.
+- Files:
+  - Deleted: `ethonline-main/`, `kevin_frontend-main/`, `TradeSense-Ryochan/src/components/kevin/*`, `TradeSense-Ryochan/src/styles/kevin/*`, `TradeSense-Ryochan/src/components/landing/` (10 sections), `TradeSense-Ryochan/src/components/dashboard/{WhatChanged30sBanner,MarketOverview,RecurringScanCard,TokenMetricsCard}.tsx`, `TradeSense-Ryochan/public/vendor/*`, `TradeSense-Ryochan/public/assets/json/*`, `TradeSense-Ryochan/public/assets/img/*`, `TradeSense-Ryochan/public/assets/fonts/*`.
+  - Modified: `TradeSense-Ryochan/index.html`, `TradeSense-Ryochan/AGENTS.md`, `TradeSense-Ryochan/HISTORY.md`.
+- Verification: Ran `npm run typecheck` (`tsc --noEmit`), passed with 0 errors. Ran `npm run build` (`vite build`), completed cleanly in 23s transforming 1,636 modules into `dist/` with 0 warnings or broken imports.
+- External side effects: None; local file deletions, asset pruning, and documentation updates only.
+- Outcome / next step: Workspace is lean, clean, and fully focused on TradeSense. Dev server operational.
+
+

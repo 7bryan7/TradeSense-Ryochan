@@ -6,15 +6,17 @@ Build the scoped TradeSense prototype in [README.md](README.md): RYO market rese
 
 **Selected tracks:** RYO-CHAN Hackathon 2026 Track 01 — Autonomous Agents and Track 02 — Dashboards & Interfaces ($3,500 prize pool).
 
-**Current Workspace Status (September 21, 2026):**
-- Frontend terminal is fully scaffolded and operational using React 18, Vite 6, TypeScript 5.7, and Tailwind CSS 3.4.
-- Landing page features high-fidelity video backgrounds, luxury Kevin typography tokens (`PPNeueMontreal`, `PPNeueBit`), and a cleaned 5-stage pipeline.
-- The dashboard has been overhauled specifically for **Track 02: Dashboards & Interfaces** into a pro 2-column trading terminal:
+**Current Workspace Status (September 22, 2026):**
+- Workspace has been fully purged of all external repositories (`ethonline-main`, `kevin_frontend-main`), legacy components (`src/components/kevin/*`), unimported landing sections (`src/components/landing/*` except `LandingNav.tsx`), superseded dashboard components (`WhatChanged30sBanner.tsx`, `MarketOverview.tsx`, `RecurringScanCard.tsx`, `TokenMetricsCard.tsx`), dead CSS files (`src/styles/kevin/*`), and dead vendor/lottie/font public assets.
+- Frontend terminal is lean, verified, and operational using React 18, Vite 6, TypeScript 5.7, and Tailwind CSS 3.4 (`npm run typecheck` and `npm run build` passing with 0 errors).
+- Landing page features high-fidelity video backgrounds (`309316_medium.mp4`, `Video Project 1.mp4`), Space Grotesk / JetBrains Mono typography, and an interactive 5-stage pipeline console.
+- The dashboard is focused on **Track 02: Dashboards & Interfaces** as a pro 2-column trading terminal:
   - Left panel (62%): Candlestick & volume chart with TP/SL levels + integrated 10 bps paper trade execution terminal.
   - Right panel (38%): Unified `AICoPilotDossier` answering "what changed and why it matters" in under 30 seconds with calibrated confidence, evidence citations, and safety invariant stamps.
   - Bottom console: Tabbed drawer for paper portfolio ($10k equity), execution audit log, and risk policy checks.
   - Full keyboard-first accessibility: `1`-`5` for asset selection, `R` for instant market scan, `D` for data mode toggle, `S` for scenario switcher, and `?` for the keyboard HUD.
   - Header footprint optimized (~740px) for seamless laptop viewing without collision. All AI badge clutter removed from sidebar and topbar.
+
 
 This file guides future work within the user's active task. A request to create or review documentation does not authorize scaffolding, dependency installation, live inference, scheduled jobs, deployment, or publication.
 

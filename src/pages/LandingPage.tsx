@@ -401,7 +401,7 @@ export const LandingPage: React.FC = () => {
       {/* Hero Section (Fills full viewport height down to the bottom of the screen) */}
       <section className="relative z-10 isolate overflow-hidden min-h-screen min-h-[100dvh] flex flex-col justify-center pt-24 pb-14">
         <video
-          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-100"
+          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90"
           autoPlay
           loop
           muted
@@ -472,8 +472,8 @@ export const LandingPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveStage(idx)}
                 className={`p-3 rounded-xl text-left font-mono transition-all duration-200 border flex flex-col justify-between gap-2 relative overflow-hidden group ${isActive
-                    ? 'bg-[#161A29] border-[#38F997]/60 shadow-[0_0_24px_rgba(56,249,151,0.15)] ring-1 ring-[#38F997]/30'
-                    : 'bg-[#10131F]/80 border-[rgba(251,237,224,0.08)] hover:border-[rgba(251,237,224,0.2)] hover:bg-[#141724]'
+                  ? 'bg-[#161A29] border-[#38F997]/60 shadow-[0_0_24px_rgba(56,249,151,0.15)] ring-1 ring-[#38F997]/30'
+                  : 'bg-[#10131F]/80 border-[rgba(251,237,224,0.08)] hover:border-[rgba(251,237,224,0.2)] hover:bg-[#141724]'
                   }`}
               >
                 {isActive && (
@@ -549,7 +549,7 @@ export const LandingPage: React.FC = () => {
       <div className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
         {/* Background Video: Floating 3D Golden Crypto Coins */}
         <video
-          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-80 pointer-events-none"
+          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90 pointer-events-none"
           autoPlay
           loop
           muted
