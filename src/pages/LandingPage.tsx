@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   ArrowRight,
@@ -16,9 +16,23 @@ import {
   Github,
 } from 'lucide-react';
 import { LandingNav, HexLogo } from '../components/landing/LandingNav';
+import { useAuth } from '../context/AuthContext';
 
 export const LandingPage: React.FC = () => {
   const [activeStage, setActiveStage] = useState(0);
+  const navigate = useNavigate();
+  const { isAuthenticated, openAuthModal } = useAuth();
+
+  const handleLaunchApp = (route = '/dashboard') => {
+    if (isAuthenticated) {
+      navigate(route);
+    } else {
+      openAuthModal(
+        'Please sign in with Google first to receive your Unique Trader ID and access the terminal.',
+        route
+      );
+    }
+  };
 
   const pipelineStages = [
     {
@@ -433,19 +447,21 @@ export const LandingPage: React.FC = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/dashboard"
-              className="px-8 py-4 rounded-full bg-[#FBEDE0] hover:bg-white text-[#161823] font-bold text-sm tracking-wide shadow-2xl transition-all duration-200 flex items-center gap-2 hover:scale-105"
+            <button
+              type="button"
+              onClick={() => handleLaunchApp('/dashboard')}
+              className="px-8 py-4 rounded-full bg-[#FBEDE0] hover:bg-white text-[#161823] font-bold text-sm tracking-wide shadow-2xl transition-all duration-200 flex items-center gap-2 hover:scale-105 cursor-pointer"
             >
               <span>Open Intelligence Dashboard</span>
               <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              to="/markets"
-              className="px-8 py-4 rounded-full bg-[rgba(251,237,224,0.08)] hover:bg-[rgba(251,237,224,0.14)] border border-[rgba(251,237,224,0.20)] text-[#FBEDE0] font-semibold text-sm transition-all"
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLaunchApp('/markets')}
+              className="px-8 py-4 rounded-full bg-[rgba(251,237,224,0.08)] hover:bg-[rgba(251,237,224,0.14)] border border-[rgba(251,237,224,0.20)] text-[#FBEDE0] font-semibold text-sm transition-all cursor-pointer"
             >
               Explore Market Candidates
-            </Link>
+            </button>
           </div>
         </div>
       </section>
@@ -608,13 +624,14 @@ export const LandingPage: React.FC = () => {
               Ready to test explainable AI models on Bitcoin, Ethereum, and Solana with live candle charts and 10 bps paper trading?
             </p>
             <div className="pt-2">
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#FBEDE0] hover:bg-white text-[#161823] font-bold text-sm shadow-xl transition-all hover:scale-105"
+              <button
+                type="button"
+                onClick={() => handleLaunchApp('/dashboard')}
+                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#FBEDE0] hover:bg-white text-[#161823] font-bold text-sm shadow-xl transition-all hover:scale-105 cursor-pointer"
               >
                 <span>Launch TradeSense Terminal</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </section>

@@ -173,4 +173,53 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - External side effects: None; local file deletions, asset pruning, and documentation updates only.
 - Outcome / next step: Workspace is lean, clean, and fully focused on TradeSense. Dev server operational.
 
+### 20260922T173000Z-google-auth-and-unique-id-gate — Add Google sign-in with Unique Trader IDs and Launch App gate
+
+- Recorded at: 2026-09-22 17:30:00 UTC.
+- Agent: Antigravity primary software engineering agent.
+- Task: Gate terminal access behind Google authentication with persistent Unique Trader IDs, prompting unauthenticated users to sign in first upon clicking "Launch App".
+- Actions:
+  - Created `src/context/AuthContext.tsx` providing persistent trader identity, Google sign-in simulation with realistic OAuth handshake, Unique Trader ID generation (`UID: USR-XXXX-XXX`), session storage in `localStorage`, and modal open/close controls.
+  - Built `src/components/auth/SignInModal.tsx`: luxury dark-mode glassmorphic dialog with official multi-colored Google 'G' icon, clear "Authentication Required" prompt, and instant sign-in with preset or custom Google accounts.
+  - Implemented `src/components/auth/ProtectedRoute.tsx` route guard redirecting unauthenticated URL visits back to `/` and triggering the sign-in prompt.
+  - Updated `src/components/landing/LandingNav.tsx`: added Google sign-in button, Unique Trader ID badge display (`UID: USR-...`), avatar and Sign Out button, and guarded the "Launch App" button and terminal links.
+  - Updated `src/pages/LandingPage.tsx`: wired hero CTA ("Open Intelligence Dashboard") and footer CTA ("Launch TradeSense Terminal") to check authentication state and prompt unauthenticated visitors to sign in first.
+  - Updated `src/components/dashboard/Sidebar.tsx`: added active trader identity card displaying the user's Google avatar, name, and persistent Unique Trader ID badge with sign-out action.
+  - Updated `src/App.tsx`: wrapped application in `<AuthProvider>` with global `<SignInModal />` and guarded `<AppLayout />` routes with `<ProtectedRoute>`.
+- Files:
+  - Created: `src/context/AuthContext.tsx`, `src/components/auth/SignInModal.tsx`, `src/components/auth/ProtectedRoute.tsx`.
+  - Modified: `src/components/landing/LandingNav.tsx`, `src/pages/LandingPage.tsx`, `src/components/dashboard/Sidebar.tsx`, `src/App.tsx`, `AGENTS.md`, `HISTORY.md`.
+- Verification: Ran `npm run typecheck` (`tsc --noEmit`), passed with 0 errors. Ran `npm run build` (`vite build`), completed cleanly in 3.3s transforming 1,639 modules into `dist/` with 0 warnings or broken imports.
+- External side effects: None; local client-side authentication and routing updates only.
+- Outcome / next step: Authentication gate and Unique Trader ID assignment fully operational.
+
+### 20260922T175000Z-google-cloud-auth-and-hackerjose25-profile — Integrate Google Cloud Console OAuth and HackerJose25 profile fallback
+
+- Recorded at: 2026-09-22 17:50:00 UTC.
+- Agent: Antigravity primary software engineering agent.
+- Task: Connect real Google Cloud Console Google authentication to display real Google profile pictures, and provide HackerJose25 username with user-uploaded Zenitsu avatar as frontend fallback.
+- Actions:
+  - Added Google Identity Services (GIS) Web SDK (`https://accounts.google.com/gsi/client`) to `index.html`.
+  - Added `src/vite-env.d.ts` with strongly typed `VITE_GOOGLE_CLIENT_ID` environment definition.
+  - Saved user-uploaded Zenitsu anime avatar to `public/assets/avatars/hackerjose25.png`.
+  - Enhanced `AuthContext.tsx` with:
+    - Real Google Identity Services (GIS) token client calling `https://www.googleapis.com/oauth2/v3/userinfo` to retrieve real Google profile picture, name, and email without backend dependencies.
+    - Default/fallback identity `HackerJose25` (`hackerjose25@gmail.com`, `UID: USR-HJ25-GOOG`) with the user's avatar.
+    - Automatic fallback if Google Cloud Console Client ID is not configured, or if authentication fails/is dismissed.
+    - Client ID persistence in `localStorage` and `.env.example` documentation.
+  - Enhanced `SignInModal.tsx`:
+    - Added Google Cloud Console authentication trigger with real Google OAuth popup.
+    - Added direct 1-click **"HackerJose25"** DEV AUTH card displaying the Zenitsu avatar preview.
+    - Added collapsible Google OAuth 2.0 Client ID configuration drawer.
+  - Updated `Sidebar.tsx` and `LandingNav.tsx` to render `object-cover` for clean avatar presentation.
+  - Updated `AGENTS.md` and `HISTORY.md`.
+- Files:
+  - Created: `public/assets/avatars/hackerjose25.png`, `src/vite-env.d.ts`.
+  - Modified: `index.html`, `src/context/AuthContext.tsx`, `src/components/auth/SignInModal.tsx`, `src/components/dashboard/Sidebar.tsx`, `.env.example`, `AGENTS.md`, `HISTORY.md`.
+- Verification: Ran `npm run typecheck` (`tsc --noEmit`), passed with 0 errors. Ran `npm run build` (`vite build`), completed cleanly in 2.71s transforming 1,639 modules into `dist/` with 0 warnings or broken imports.
+- External side effects: None; client-side OAuth integration and local asset integration only.
+- Outcome / next step: Real Google Cloud Console OAuth and HackerJose25 frontend profile fully operational.
+
+
+
 

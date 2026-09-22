@@ -16,6 +16,12 @@ Build the scoped TradeSense prototype in [README.md](README.md): RYO market rese
   - Bottom console: Tabbed drawer for paper portfolio ($10k equity), execution audit log, and risk policy checks.
   - Full keyboard-first accessibility: `1`-`5` for asset selection, `R` for instant market scan, `D` for data mode toggle, `S` for scenario switcher, and `?` for the keyboard HUD.
   - Header footprint optimized (~740px) for seamless laptop viewing without collision. All AI badge clutter removed from sidebar and topbar.
+- Google Cloud Console OAuth & Unique Trader ID Access Gate:
+  - Landing page is public for all visitors, but "Launch App" and terminal navigation links are guarded.
+  - Real Google Cloud Console Google Auth: uses Google Identity Services (GIS) Web SDK client-side to fetch real user name, email, and Google profile picture (`picture` from `userinfo`).
+  - Fallback / Dev Auth: if Google Cloud Console credentials are unconfigured or authentication fails/is dismissed, falls back to `HackerJose25` (`hackerjose25@gmail.com`, `UID: USR-HJ25-GOOG`) with the user-provided Zenitsu avatar at `/assets/avatars/hackerjose25.png`.
+  - Both paths assign a persistent Unique Trader ID displayed with active status in the navbar and sidebar.
+  - Direct URL access to `/dashboard`, `/markets`, etc. is guarded by `ProtectedRoute.tsx`.
 
 
 This file guides future work within the user's active task. A request to create or review documentation does not authorize scaffolding, dependency installation, live inference, scheduled jobs, deployment, or publication.

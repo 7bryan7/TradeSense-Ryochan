@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ArrowRight, Menu, X } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowRight, Menu, X, LogOut, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { GoogleIcon } from '../auth/SignInModal';
 
 export const HexLogo: React.FC<{ className?: string }> = ({ className = 'w-[30px] h-[30px]' }) => (
   <svg
@@ -30,6 +32,8 @@ export const LandingNav: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, signOut, openAuthModal } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -59,6 +63,28 @@ export const LandingNav: React.FC = () => {
     { to: '/history', label: 'Audit History' },
   ];
 
+  const handleLaunchApp = (e: React.MouseEvent, route = '/dashboard') => {
+    e.preventDefault();
+    if (isAuthenticated) {
+      navigate(route);
+    } else {
+      openAuthModal(
+        'Please sign in with Google first to receive your Unique Trader ID and access the terminal.',
+        route
+      );
+    }
+  };
+
+  const handleNavClick = (e: React.MouseEvent, to: string) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      openAuthModal(
+        `Please sign in with Google first to access ${to.replace('/', '')}.`,
+        to
+      );
+    }
+  };
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 w-full z-50 border-b transition-all duration-300 ease-out ${
@@ -83,6 +109,7 @@ export const LandingNav: React.FC = () => {
             <Link
               key={link.to}
               to={link.to}
+              onClick={(e) => handleNavClick(e, link.to)}
               className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[rgba(251,237,224,0.72)] hover:text-[#FBEDE0] hover:bg-white/[0.08] active:bg-white/[0.12] transition-all duration-200"
             >
               {link.label}
@@ -92,13 +119,56 @@ export const LandingNav: React.FC = () => {
 
         {/* Right Action / CTA & Mobile Hamburger */}
         <div className="flex items-center gap-2.5">
-          <Link
-            to="/dashboard"
-            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-[#38F997] text-[#0C0E17] hover:bg-[#46fba1] transition-colors"
+          {/* User Status / Sign In Option */}
+          {isAuthenticated && user ? (
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Unique ID Badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#161926] border border-[#38F997]/30 text-[11px] font-mono text-[#38F997] shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#38F997] animate-pulse" />
+                <span className="font-bold">{user.id}</span>
+              </div>
+
+              {/* User Avatar & Sign Out */}
+              <div className="flex items-center gap-1.5 pl-1">
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-7 h-7 rounded-full bg-[#161926] border border-[rgba(251,237,224,0.2)] object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={signOut}
+                  title="Sign out of TradeSense"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/5 transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                openAuthModal(
+                  'Sign in with Google to receive your Unique Trader ID and access the terminal.'
+                )
+              }
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] hover:bg-[#1C2030] hover:border-[#38F997]/40 transition-colors"
+            >
+              <GoogleIcon className="w-3.5 h-3.5" />
+              <span>Sign in</span>
+            </button>
+          )}
+
+          {/* Launch App Button (Guarded) */}
+          <button
+            type="button"
+            onClick={(e) => handleLaunchApp(e)}
+            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-[#38F997] text-[#0C0E17] hover:bg-[#46fba1] transition-colors cursor-pointer"
           >
             <span>Launch App</span>
             <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          </button>
 
           {/* Mobile Hamburger Toggle */}
           <button
@@ -116,11 +186,34 @@ export const LandingNav: React.FC = () => {
       {mobileMenuOpen && (
         <div className="md:hidden mt-4 -mx-6 sm:-mx-12 px-6 sm:px-12 py-4 border-t border-b border-[rgba(251,237,224,0.10)] bg-[#0C0E17]/95 backdrop-blur-2xl shadow-2xl">
           <div className="flex flex-col space-y-1">
+            {/* Authenticated user pill in mobile */}
+            {isAuthenticated && user && (
+              <div className="p-3 mb-2 rounded-xl bg-[#161926] border border-[#38F997]/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-full bg-[#10131F]" />
+                  <div>
+                    <p className="text-xs font-semibold text-[#FBEDE0]">{user.name}</p>
+                    <p className="text-[10px] font-mono text-[#38F997] font-bold">{user.id}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="text-xs text-red-400 hover:text-red-300 font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+
             {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={(e) => {
+                  setMobileMenuOpen(false);
+                  handleNavClick(e, link.to);
+                }}
                 className="px-4 py-2.5 rounded-2xl text-sm font-semibold text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-all duration-150 flex items-center justify-between"
               >
                 <span>{link.label}</span>
@@ -128,15 +221,34 @@ export const LandingNav: React.FC = () => {
               </Link>
             ))}
 
-            <div className="pt-2 mt-2 border-t border-[rgba(251,237,224,0.10)]">
-              <Link
-                to="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
+            <div className="pt-2 mt-2 border-t border-[rgba(251,237,224,0.10)] space-y-2">
+              {!isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    openAuthModal(
+                      'Sign in with Google to receive your Unique Trader ID and access the terminal.'
+                    );
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] font-semibold text-xs"
+                >
+                  <GoogleIcon className="w-4 h-4" />
+                  <span>Sign in with Google</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  setMobileMenuOpen(false);
+                  handleLaunchApp(e);
+                }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#38F997] text-[#0C0E17] font-semibold text-xs hover:bg-[#46fba1] transition-colors"
               >
                 <span>Launch App</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>

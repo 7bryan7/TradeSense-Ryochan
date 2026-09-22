@@ -11,7 +11,9 @@ import {
   Sparkles,
   ExternalLink,
   Cpu,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   recurringEnabled?: boolean;
@@ -37,6 +39,8 @@ const HexLogo: React.FC = () => (
 );
 
 export const Sidebar: React.FC<SidebarProps> = () => {
+  const { user, signOut } = useAuth();
+
   const navItems = [
     { to: '/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
     { to: '/markets',   label: 'Markets',    icon: BarChart3 },
@@ -95,8 +99,38 @@ export const Sidebar: React.FC<SidebarProps> = () => {
         </nav>
       </div>
 
-      {/* ── Bottom Section: Agent Telemetry & Settings ── */}
+      {/* ── Bottom Section: Trader ID, Agent Telemetry & Settings ── */}
       <div className="p-3 border-t border-[rgba(251,237,224,0.08)] space-y-2">
+        {/* Active Trader Identity Card */}
+        {user && (
+          <div className="p-2.5 rounded-xl bg-[#161926]/90 border border-[rgba(251,237,224,0.10)] flex items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-7 h-7 rounded-full bg-[#10131F] shrink-0 border border-[#38F997]/30 object-cover"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[#FBEDE0] truncate leading-tight">
+                  {user.name}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] font-mono text-[#38F997] font-bold">
+                  <span className="w-1 h-1 rounded-full bg-[#38F997] animate-pulse" />
+                  <span className="truncate">{user.id}</span>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              title="Sign Out"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-white/5 transition-colors shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Agent Telemetry Card */}
         <div className="p-3 rounded-xl bg-[#161926]/90 border border-[rgba(251,237,224,0.10)] space-y-2">
           <div className="flex items-center justify-between text-[11px] font-mono">
