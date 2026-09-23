@@ -42,13 +42,13 @@ export const AgentWorkflowVisualizer: React.FC<AgentWorkflowVisualizerProps> = (
   };
 
   return (
-    <div className="bg-[#161926]/90 backdrop-blur-xl border border-[rgba(251,237,224,0.10)] rounded-2xl p-4.5 shadow-xl">
+    <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3 text-xs font-mono">
-        <span className="text-[rgba(251,237,224,0.65)] uppercase flex items-center gap-2 font-bold tracking-wider">
-          <span className={`w-2 h-2 rounded-full ${isScanning ? 'bg-[#00D2FF] animate-ping' : 'bg-[#38F997]'}`} />
+        <span className="text-[#8F9CAE] uppercase flex items-center gap-2 font-bold tracking-wider">
+          <span className={`w-2 h-2 rounded-full ${isScanning ? 'bg-[#4ce07a] animate-ping' : 'bg-[#4ce07a]'}`} />
           <span>AUTONOMOUS AGENT PIPELINE</span>
         </span>
-        <span className="text-[#38F997] text-[11px] font-mono flex items-center gap-1.5">
+        <span className="text-[#4ce07a] text-[11px] font-mono flex items-center gap-1.5 font-medium">
           <Sparkles className="w-3.5 h-3.5" />
           <span>{isScanning ? currentStepName || 'Executing reasoning pipeline...' : 'System Verified • Autonomous Ready'}</span>
         </span>
@@ -68,16 +68,16 @@ export const AgentWorkflowVisualizer: React.FC<AgentWorkflowVisualizerProps> = (
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
                     state === 'active'
-                      ? 'bg-[#38F997] text-[#0C0E17] shadow-glow-green scale-110'
+                      ? 'bg-ryo-gradient text-[#050806] shadow-ryo-sm scale-105 font-bold'
                       : state === 'completed'
-                      ? 'bg-[#1C2030] border border-[rgba(251,237,224,0.15)] text-[#38F997]'
-                      : 'bg-[#12141F] border border-[rgba(251,237,224,0.06)] text-[rgba(251,237,224,0.35)]'
+                      ? 'bg-[#15171C] border border-white/[0.08] text-[#4ce07a]'
+                      : 'bg-[#15171C] border border-white/[0.04] text-[#8F9CAE]/40'
                   }`}
                 >
                   {state === 'active' ? (
-                    <Icon className="w-4 h-4 animate-spin text-[#0C0E17]" />
+                    <Icon className="w-4 h-4 animate-spin text-[#050806]" />
                   ) : state === 'completed' && !isScanning ? (
-                    <CheckCircle2 className="w-4 h-4 text-[#38F997]" />
+                    <CheckCircle2 className="w-4 h-4 text-[#4ce07a]" />
                   ) : (
                     <Icon className="w-4 h-4" />
                   )}
@@ -85,25 +85,25 @@ export const AgentWorkflowVisualizer: React.FC<AgentWorkflowVisualizerProps> = (
                 <span
                   className={`text-[11px] font-mono mt-1.5 font-bold ${
                     state === 'active'
-                      ? 'text-[#38F997]'
+                      ? 'text-[#4ce07a]'
                       : state === 'completed'
-                      ? 'text-[#FBEDE0]'
-                      : 'text-[rgba(251,237,224,0.35)]'
+                      ? 'text-white'
+                      : 'text-[#8F9CAE]/50'
                   }`}
                 >
                   {step.label}
                 </span>
-                <span className="text-[10px] font-mono text-[rgba(251,237,224,0.5)] whitespace-nowrap">
+                <span className="text-[10px] font-mono text-[#8F9CAE] whitespace-nowrap">
                   {step.sub}
                 </span>
               </div>
 
               {/* Connecting Line */}
               {!isLast && (
-                <div className="flex-1 h-[2px] min-w-[20px] bg-[rgba(251,237,224,0.10)] relative mx-1">
+                <div className="flex-1 h-[2px] min-w-[20px] bg-white/[0.06] relative mx-1">
                   <div
                     className={`h-full transition-all duration-500 ${
-                      state === 'completed' ? 'bg-[#38F997]/60' : 'bg-transparent'
+                      state === 'completed' ? 'bg-[#4ce07a]/60' : 'bg-transparent'
                     }`}
                   />
                 </div>

@@ -10,16 +10,19 @@ import {
   ShieldAlert,
   ArrowRight,
   Sparkles,
+  MessageSquareCode,
 } from 'lucide-react';
 
 interface AIDecisionCardProps {
   decision: DecisionReport;
   isScanning?: boolean;
+  onInterrogateInChat?: (prompt: string) => void;
 }
 
 export const AIDecisionCard: React.FC<AIDecisionCardProps> = ({
   decision,
   isScanning = false,
+  onInterrogateInChat,
 }) => {
   const isBuy = decision.action === 'BUY';
   const isSell = decision.action === 'SELL';
@@ -184,6 +187,19 @@ export const AIDecisionCard: React.FC<AIDecisionCardProps> = ({
           Invalidation Level: <strong className="text-[#F87171]">${decision.outlook.invalidationPrice.toLocaleString()}</strong>
         </div>
       </div>
+
+      {/* Interrogate in Chat CTA */}
+      {onInterrogateInChat && (
+        <button
+          type="button"
+          onClick={() => onInterrogateInChat(`Why did the agent choose ${decision.action} in this analysis?`)}
+          className="mt-3 w-full py-2.5 px-3 rounded-xl bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/30 text-[#00D2FF] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-glow-cyan-xs group"
+        >
+          <MessageSquareCode className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <span>Interrogate Thesis in Chat ("Why {decision.action}?")</span>
+          <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      )}
     </div>
   );
 };

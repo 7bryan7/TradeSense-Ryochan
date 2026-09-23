@@ -66,24 +66,25 @@ export const CandleChart: React.FC<CandleChartProps> = ({
   const currentY = getY(currentPrice);
 
   return (
-    <div className="bg-[#161926]/90 backdrop-blur-xl border border-[rgba(251,237,224,0.12)] rounded-2xl p-4.5 shadow-xl flex flex-col">
+    <div className="dashboard-glass-card rounded-2xl p-4 sm:p-5 flex flex-col relative overflow-hidden">
       {/* Top Chart Header & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[rgba(251,237,224,0.08)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-[#FBEDE0] font-mono tracking-wider">
-            {pairName}
-          </span>
+          {/* Pair Selector Pill */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#15171C]/75 backdrop-blur-md border border-white/[0.06] text-xs font-bold text-white font-mono tracking-wide">
+            <span>{pairName}</span>
+          </div>
 
-          {/* Timeframe Buttons (ethonline-main style) */}
-          <div className="flex items-center bg-[#10131F] border border-[rgba(251,237,224,0.10)] rounded-xl p-0.5">
+          {/* Timeframe Buttons (matching reference template) */}
+          <div className="flex items-center bg-[#15171C]/75 backdrop-blur-md border border-white/[0.06] rounded-xl p-0.5">
             {timeframes.map(tf => (
               <button
                 key={tf}
                 onClick={() => onTimeframeChange(tf)}
                 className={`px-2.5 py-1 text-xs font-mono font-bold rounded-lg transition-all ${
                   timeframe === tf
-                    ? 'bg-[#FBEDE0] text-[#0C0E17] shadow-xs'
-                    : 'text-[rgba(251,237,224,0.6)] hover:text-[#FBEDE0]'
+                    ? 'bg-[#4ce07a] text-[#050806] font-bold shadow-xs'
+                    : 'text-[#8F9CAE] hover:text-white'
                 }`}
               >
                 {tf}
@@ -97,8 +98,8 @@ export const CandleChart: React.FC<CandleChartProps> = ({
             onClick={() => setShowIndicators(!showIndicators)}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono border transition-all ${
               showIndicators
-                ? 'bg-[#00D2FF]/10 text-[#00D2FF] border-[#00D2FF]/30'
-                : 'text-[rgba(251,237,224,0.5)] border-[rgba(251,237,224,0.10)] hover:bg-white/5'
+                ? 'bg-[#4ce07a]/15 text-[#4ce07a] border-[#4ce07a]/40 font-bold'
+                : 'text-[#8F9CAE] border-white/[0.06] hover:bg-white/5'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -108,23 +109,23 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
         {/* Live Hover Metrics Display */}
         {activeCandle && (
-          <div className="flex items-center gap-3 font-mono text-[11px] text-[rgba(251,237,224,0.6)] overflow-x-auto">
+          <div className="flex items-center gap-3 font-mono text-[11px] text-[#8F9CAE] overflow-x-auto">
             <span>
-              O: <strong className="text-[#FBEDE0]">${activeCandle.open.toLocaleString()}</strong>
+              O: <strong className="text-white">${activeCandle.open.toLocaleString()}</strong>
             </span>
             <span>
-              H: <strong className="text-[#38F997]">${activeCandle.high.toLocaleString()}</strong>
+              H: <strong className="text-[#4ce07a]">${activeCandle.high.toLocaleString()}</strong>
             </span>
             <span>
-              L: <strong className="text-[#F87171]">${activeCandle.low.toLocaleString()}</strong>
+              L: <strong className="text-[#EF4444]">${activeCandle.low.toLocaleString()}</strong>
             </span>
             <span>
-              C: <strong className={activeCandle.close >= activeCandle.open ? 'text-[#38F997]' : 'text-[#F87171]'}>
+              C: <strong className={activeCandle.close >= activeCandle.open ? 'text-[#4ce07a]' : 'text-[#EF4444]'}>
                 ${activeCandle.close.toLocaleString()}
               </strong>
             </span>
             <span>
-              Vol: <strong className="text-[#FBEDE0]">{activeCandle.volume.toLocaleString()}</strong>
+              Vol: <strong className="text-white">{activeCandle.volume.toLocaleString()}</strong>
             </span>
           </div>
         )}
@@ -171,7 +172,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
             y1={volumeTop - 10}
             x2={svgWidth}
             y2={volumeTop - 10}
-            stroke="rgba(251, 237, 224, 0.08)"
+            stroke="rgba(255, 255, 255, 0.06)"
           />
 
           {/* Take Profit Target Level (Dashed Green) */}
@@ -182,7 +183,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
                 y1={getY(takeProfitPrice)}
                 x2={svgWidth - 65}
                 y2={getY(takeProfitPrice)}
-                stroke="#38F997"
+                stroke="#4ce07a"
                 strokeWidth="1.5"
                 strokeDasharray="6 3"
                 opacity="0.8"
@@ -198,7 +199,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
               <text
                 x={svgWidth - 60}
                 y={getY(takeProfitPrice) + 3}
-                fill="#38F997"
+                fill="#4ce07a"
                 fontSize="9"
                 fontFamily="monospace"
                 fontWeight="bold"
@@ -216,7 +217,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
                 y1={getY(stopLossPrice)}
                 x2={svgWidth - 65}
                 y2={getY(stopLossPrice)}
-                stroke="#F87171"
+                stroke="#EF4444"
                 strokeWidth="1.5"
                 strokeDasharray="6 3"
                 opacity="0.8"
@@ -232,7 +233,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
               <text
                 x={svgWidth - 60}
                 y={getY(stopLossPrice) + 3}
-                fill="#F87171"
+                fill="#EF4444"
                 fontSize="9"
                 fontFamily="monospace"
                 fontWeight="bold"
@@ -248,7 +249,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
             y1={currentY}
             x2={svgWidth - 65}
             y2={currentY}
-            stroke="#00D2FF"
+            stroke="#4ce07a"
             strokeWidth="1"
             strokeDasharray="2 2"
           />
@@ -257,13 +258,13 @@ export const CandleChart: React.FC<CandleChartProps> = ({
             y={currentY - 9}
             width="65"
             height="18"
-            fill="#083344"
+            fill="#052e16"
             rx="3"
           />
           <text
             x={svgWidth - 60}
             y={currentY + 3}
-            fill="#38BDF8"
+            fill="#4ce07a"
             fontSize="9"
             fontFamily="monospace"
             fontWeight="bold"
@@ -299,7 +300,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
                   y1={highY}
                   x2={x + barWidth / 2}
                   y2={lowY}
-                  stroke={isBullish ? '#38F997' : '#F87171'}
+                  stroke={isBullish ? '#4ce07a' : '#EF4444'}
                   strokeWidth="1.2"
                 />
 
@@ -309,7 +310,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
                   y={bodyTop}
                   width={barWidth}
                   height={bodyHeight}
-                  fill={isBullish ? '#38F997' : '#F87171'}
+                  fill={isBullish ? '#4ce07a' : '#EF4444'}
                   rx="1"
                 />
 
@@ -319,7 +320,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
                   y={volY}
                   width={barWidth}
                   height={volHeight}
-                  fill={isBullish ? 'rgba(56, 249, 151, 0.40)' : 'rgba(248, 113, 113, 0.40)'}
+                  fill={isBullish ? 'rgba(76, 224, 122, 0.45)' : 'rgba(239, 68, 68, 0.45)'}
                   rx="1"
                 />
               </g>
@@ -328,19 +329,19 @@ export const CandleChart: React.FC<CandleChartProps> = ({
         </svg>
 
         {/* Legend / Overlay Note */}
-        <div className="absolute bottom-2 left-3 flex items-center gap-4 text-[10px] font-mono text-[rgba(251,237,224,0.6)] bg-[#10131F]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[rgba(251,237,224,0.10)]">
+        <div className="absolute bottom-2 left-3 flex items-center gap-4 text-[10px] font-mono text-[#8F9CAE] bg-[#15171C]/80 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/[0.08]">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm bg-[#38F997]" /> Bull Candle
+            <span className="w-2 h-2 rounded-sm bg-[#4ce07a]" /> Bull Candle
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm bg-[#F87171]" /> Bear Candle
+            <span className="w-2 h-2 rounded-sm bg-[#EF4444]" /> Bear Candle
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-[#00D2FF]" /> Spot Mark
+            <span className="w-3 h-0.5 bg-[#4ce07a]" /> Spot Mark
           </span>
           {takeProfitPrice && (
-            <span className="flex items-center gap-1.5 text-[#38F997]">
-              <span className="w-3 h-0.5 bg-[#38F997] border-dashed" /> Sim TP
+            <span className="flex items-center gap-1.5 text-[#4ce07a]">
+              <span className="w-3 h-0.5 bg-[#4ce07a] border-dashed" /> Sim TP
             </span>
           )}
         </div>

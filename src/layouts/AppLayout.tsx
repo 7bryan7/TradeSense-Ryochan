@@ -11,6 +11,7 @@ import {
   X,
   Sparkles,
   TrendingUp,
+  MessageSquareCode,
 } from 'lucide-react';
 
 export const AppLayout: React.FC = () => {
@@ -19,18 +20,14 @@ export const AppLayout: React.FC = () => {
 
   const mobileNav = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/chat',      label: 'Ask AI',    icon: MessageSquareCode },
     { to: '/markets',   label: 'Markets',   icon: BarChart3 },
     { to: '/analysis',  label: 'Analysis',  icon: BrainCircuit },
     { to: '/portfolio', label: 'Portfolio', icon: Wallet },
-    { to: '/history',   label: 'History',   icon: History },
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0C0E17] text-[#FBEDE0] font-sans relative">
-      {/* Ambient background grid & top radial glow (ethonline-main style) */}
-      <div className="absolute inset-0 bg-grid-pattern pointer-events-none opacity-40" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-radial-glow pointer-events-none" />
-
+    <div className="flex h-screen overflow-hidden bg-[#15171C] text-white font-sans relative">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex relative z-20 shrink-0">
         <Sidebar />
@@ -43,10 +40,10 @@ export const AppLayout: React.FC = () => {
             className="fixed inset-0 bg-black/80 backdrop-blur-md"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative z-10 w-72 h-full bg-[#10131F] border-r border-[rgba(251,237,224,0.12)] shadow-2xl flex flex-col">
-            <div className="p-4 flex items-center justify-between border-b border-[rgba(251,237,224,0.08)]">
-              <span className="font-bold text-[#FBEDE0] flex items-center gap-2 text-base">
-                <Sparkles className="w-4 h-4 text-[#38F997]" />
+          <div className="relative z-10 w-72 h-full bg-[#16181F] border-r border-white/[0.08] shadow-2xl flex flex-col">
+            <div className="p-4 flex items-center justify-between border-b border-white/[0.08]">
+              <span className="font-bold text-white flex items-center gap-2 text-base">
+                <span className="w-6 h-6 rounded-lg bg-ryo-gradient text-[#050806] font-black flex items-center justify-center text-xs">TS</span>
                 TradeSense
               </span>
               <button
@@ -69,7 +66,7 @@ export const AppLayout: React.FC = () => {
         {/* Mobile Top Header */}
         <div className="md:hidden flex items-center justify-between p-3.5 bg-[#10131F]/90 backdrop-blur-md border-b border-[rgba(251,237,224,0.10)] shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-2 font-bold text-sm text-[#FBEDE0]">
-            <span className="w-2 h-2 rounded-full bg-[#38F997] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#4ce07a] animate-pulse" />
             <span>TradeSense</span>
           </div>
           <button
@@ -87,7 +84,7 @@ export const AppLayout: React.FC = () => {
         </main>
 
         {/* Mobile Bottom Navigation Bar */}
-        <div className="md:hidden fixed bottom-3 left-4 right-4 z-40 bg-[#141724]/95 backdrop-blur-xl border border-[rgba(251,237,224,0.15)] rounded-2xl flex items-center justify-around py-2 shadow-2xl">
+        <div className="md:hidden fixed bottom-3 left-4 right-4 z-40 bg-[#16181F]/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl flex items-center justify-around py-2 shadow-2xl">
           {mobileNav.map(item => {
             const Icon = item.icon;
             const isActive = location.pathname === item.to;
@@ -97,8 +94,8 @@ export const AppLayout: React.FC = () => {
                 to={item.to}
                 className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all ${
                   isActive
-                    ? 'text-[#38F997] bg-[#38F997]/10 font-bold scale-105'
-                    : 'text-[rgba(251,237,224,0.6)] hover:text-[#FBEDE0]'
+                    ? 'text-[#050806] bg-ryo-gradient shadow-ryo-sm font-bold scale-105'
+                    : 'text-[#8F9CAE] hover:text-white'
                 }`}
               >
                 <Icon className="w-4 h-4" />

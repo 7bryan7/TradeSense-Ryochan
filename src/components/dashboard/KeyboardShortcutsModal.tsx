@@ -39,6 +39,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
       category: 'Interface & Navigation',
       icon: Command,
       items: [
+        { keys: ['C'], description: 'Toggle Ask TradeSense AI Chat Drawer' },
         { keys: ['?'], description: 'Open / Close this Keyboard Shortcuts HUD' },
         { keys: ['Esc'], description: 'Close any active modal or overlay' },
       ],

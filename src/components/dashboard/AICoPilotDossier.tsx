@@ -12,16 +12,19 @@ import {
   Target,
   CheckCircle2,
   AlertTriangle,
+  MessageSquareCode,
 } from 'lucide-react';
 
 interface AICoPilotDossierProps {
   decision: DecisionReport;
   isScanning?: boolean;
+  onInterrogateInChat?: (prompt: string) => void;
 }
 
 export const AICoPilotDossier: React.FC<AICoPilotDossierProps> = ({
   decision,
   isScanning = false,
+  onInterrogateInChat,
 }) => {
   const isBuy = decision.action === 'BUY';
   const isSell = decision.action === 'SELL';
@@ -193,6 +196,19 @@ export const AICoPilotDossier: React.FC<AICoPilotDossierProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Interrogate in Chat CTA Button */}
+      {onInterrogateInChat && (
+        <button
+          type="button"
+          onClick={() => onInterrogateInChat(`Why did the agent choose ${decision.action} in this analysis?`)}
+          className="w-full py-2.5 px-3 rounded-xl bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/30 text-[#00D2FF] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-glow-cyan-xs group"
+        >
+          <MessageSquareCode className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          <span>Interrogate Thesis in Chat ("Why {decision.action}?")</span>
+          <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      )}
     </div>
   );
 };

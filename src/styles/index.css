@@ -76,15 +76,79 @@
 .glow-red-sm    { box-shadow: 0 0 16px -4px rgba(248, 113, 113, 0.25); }
 .glow-red       { box-shadow: 0 0 28px -6px rgba(248, 113, 113, 0.35); }
 
-/* ─── Grid Background Pattern ───────────────────────────────────────────────── */
-.bg-grid-pattern {
-  background-size: 36px 36px;
-  background-image: 
-    linear-gradient(to right, rgba(251, 237, 224, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(251, 237, 224, 0.03) 1px, transparent 1px);
+/* ─── Global Selection & Brand Styling (from ryobuild.com) ─── */
+::selection {
+  background-color: #4ce07a;
+  color: #050806;
+}
+::-moz-selection {
+  background-color: #4ce07a;
+  color: #050806;
 }
 
-/* ─── Radial Gradient Overlays ──────────────────────────────────────────────── */
-.bg-radial-glow {
-  background: radial-gradient(circle at 50% 0%, rgba(56, 249, 151, 0.08) 0%, rgba(0, 210, 255, 0.04) 35%, transparent 70%);
+/* ─── Modern Crypto Trading Styling Utilities (RYO Green from ryobuild.com) ─ */
+.bg-sunset-gradient,
+.bg-ryo-gradient {
+  background: linear-gradient(135deg, #4ce07a 0%, #2ecc71 45%, #1db954 100%);
 }
+
+.bg-sunset-card,
+.bg-ryo-card {
+  background: linear-gradient(135deg, #4ce07a 0%, #2ecc71 50%, #15803d 100%);
+  box-shadow: 0 12px 30px -6px rgba(76, 224, 122, 0.40);
+}
+
+.shadow-ryo {
+  box-shadow: 0 10px 25px -5px rgba(76, 224, 122, 0.40), 0 8px 10px -6px rgba(46, 138, 80, 0.30);
+}
+
+.shadow-ryo-sm {
+  box-shadow: 0 4px 14px 0 rgba(76, 224, 122, 0.30);
+}
+
+.crypto-card {
+  background-color: #1E222B;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.25rem;
+}
+
+.crypto-card-hover:hover {
+  background-color: #232834;
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+/* ─── Dashboard Premium Glass & Specular Gloss Suite ─────────────────────────── */
+.dashboard-gloss-canvas {
+  position: relative;
+  background-color: #15171C;
+  overflow: hidden;
+}
+
+.dashboard-glass-card {
+  background: rgba(30, 34, 43, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.42), inset 0 1px 0 0 rgba(255, 255, 255, 0.10);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.dashboard-glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.22) 50%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.dashboard-glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+

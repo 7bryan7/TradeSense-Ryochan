@@ -12,19 +12,19 @@ export const SafetyRiskPanel: React.FC<SafetyRiskPanelProps> = ({ safety }) => {
 
   return (
     <div
-      className={`bg-[#161926]/90 border rounded-2xl p-5 shadow-panel transition-colors ${
-        isBlocked ? 'border-rose-500/50 bg-rose-950/20' : 'border-[rgba(251,237,224,0.10)]'
+      className={`bg-[#1E222B] border rounded-2xl p-5 transition-colors ${
+        isBlocked ? 'border-rose-500/50 bg-rose-950/20' : 'border-white/[0.06]'
       }`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-[rgba(251,237,224,0.08)] mb-3">
+      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
         <div className="flex items-center gap-2">
           {isBlocked ? (
             <ShieldAlert className="w-4 h-4 text-rose-400" />
           ) : (
-            <ShieldCheck className="w-4 h-4 text-[#38F997]" />
+            <ShieldCheck className="w-4 h-4 text-[#4ce07a]" />
           )}
-          <h3 className="text-xs font-bold text-[#FBEDE0] uppercase font-mono tracking-wider">
+          <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
             Safety & Risk Assessment
           </h3>
         </div>
@@ -46,52 +46,52 @@ export const SafetyRiskPanel: React.FC<SafetyRiskPanelProps> = ({ safety }) => {
 
       {/* 5 Key Safety Metrics Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-3">
-        <div className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-3">
-          <div className="text-[10px] text-[rgba(251,237,224,0.5)] font-mono">Risk Level</div>
-          <div className="text-xs font-bold font-mono mt-0.5 text-[#38F997]">
+        <div className="bg-[#15171C] border border-white/[0.06] rounded-xl p-3">
+          <div className="text-[10px] text-[#8F9CAE] font-mono">Risk Level</div>
+          <div className="text-xs font-bold font-mono mt-0.5 text-[#4ce07a]">
             {safety.riskLevel}
           </div>
         </div>
 
-        <div className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-3">
-          <div className="text-[10px] text-[rgba(251,237,224,0.5)] font-mono">Liquidity Depth</div>
-          <div className="text-xs font-bold font-mono mt-0.5 text-[#38F997]">
+        <div className="bg-[#15171C] border border-white/[0.06] rounded-xl p-3">
+          <div className="text-[10px] text-[#8F9CAE] font-mono">Liquidity Depth</div>
+          <div className="text-xs font-bold font-mono mt-0.5 text-[#4ce07a]">
             {safety.liquidity}
           </div>
         </div>
 
-        <div className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-3">
-          <div className="text-[10px] text-[rgba(251,237,224,0.5)] font-mono">Honeypot Flag</div>
+        <div className="bg-[#15171C] border border-white/[0.06] rounded-xl p-3">
+          <div className="text-[10px] text-[#8F9CAE] font-mono">Honeypot Flag</div>
           <div className="text-xs font-bold font-mono mt-0.5 flex items-center gap-1">
             {safety.honeypot ? (
               <span className="text-rose-400 font-bold flex items-center gap-1">
                 <X className="w-3 h-3" /> Yes (Flagged)
               </span>
             ) : (
-              <span className="text-[#38F997] font-bold flex items-center gap-1">
+              <span className="text-[#4ce07a] font-bold flex items-center gap-1">
                 <Check className="w-3 h-3" /> No (Clean)
               </span>
             )}
           </div>
         </div>
 
-        <div className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-3">
-          <div className="text-[10px] text-[rgba(251,237,224,0.5)] font-mono">Contract Risk</div>
-          <div className="text-xs font-bold font-mono mt-0.5 text-[#FBEDE0]">
+        <div className="bg-[#15171C] border border-white/[0.06] rounded-xl p-3">
+          <div className="text-[10px] text-[#8F9CAE] font-mono">Contract Risk</div>
+          <div className="text-xs font-bold font-mono mt-0.5 text-white">
             {safety.contractRisk}
           </div>
         </div>
 
-        <div className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-3">
-          <div className="text-[10px] text-[rgba(251,237,224,0.5)] font-mono">Data Coverage</div>
-          <div className="text-xs font-bold font-mono mt-0.5 text-[#00D2FF]">
+        <div className="bg-[#15171C] border border-white/[0.06] rounded-xl p-3">
+          <div className="text-[10px] text-[#8F9CAE] font-mono">Data Coverage</div>
+          <div className="text-xs font-bold font-mono mt-0.5 text-[#4ce07a]">
             {safety.dataCoverage}% Verified
           </div>
         </div>
 
-        <div className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-3">
-          <div className="text-[10px] text-[rgba(251,237,224,0.5)] font-mono">Overall Safety</div>
-          <div className="text-xs font-bold font-mono mt-0.5 text-[#38F997]">
+        <div className="bg-[#15171C] border border-white/[0.06] rounded-xl p-3">
+          <div className="text-[10px] text-[#8F9CAE] font-mono">Overall Safety</div>
+          <div className="text-xs font-bold font-mono mt-0.5 text-[#4ce07a]">
             {safety.overallSafety}
           </div>
         </div>
@@ -102,9 +102,9 @@ export const SafetyRiskPanel: React.FC<SafetyRiskPanelProps> = ({ safety }) => {
         {safety.findings.map(f => (
           <div
             key={f.id}
-            className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#10131F]/60 border border-[rgba(251,237,224,0.06)]"
+            className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-[#15171C] border border-white/[0.06]"
           >
-            <span className="text-[rgba(251,237,224,0.8)] font-medium">{f.name}</span>
+            <span className="text-[#8F9CAE] font-medium">{f.name}</span>
             <StatusBadge status={f.status} size="sm" />
           </div>
         ))}

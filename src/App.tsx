@@ -12,6 +12,7 @@ import { PortfolioPage } from './pages/PortfolioPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { WatchlistPage } from './pages/WatchlistPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ChatPage } from './pages/ChatPage';
 
 export const App: React.FC = () => {
   return (
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/chat" element={<ChatPage />} />
               <Route path="/markets" element={<MarketsPage />} />
               <Route path="/analysis" element={<AnalysisPage />} />
               <Route path="/portfolio" element={<PortfolioPage />} />
