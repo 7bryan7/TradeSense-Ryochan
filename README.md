@@ -8,9 +8,9 @@ TradeSense is a proposed AI crypto-market analyst that scans markets, interprets
 
 > User chooses market/token → RYO tools fetch data → AI agent analyzes evidence → simulated decision → dashboard explains why
 
-**Status — September 23, 2026: documentation only.** This workspace contains the project plan, [coding-agent instructions](AGENTS.md), and [action history](HISTORY.md). Application code, integrations, scripts, tests, and deployment do not exist yet. Everything below, including agent chat, is an implementation proposal unless explicitly marked otherwise.
+**Status — September 23, 2026: runnable fixture-mode foundation with verified Gemini inference.** The TypeScript workspace now contains a minimal React dashboard and agent chat, an Express API, a durable local SQLite ledger, fixture and live RYO research adapters, and a configurable Gemini adapter. `gemini-3.5-flash-lite` produced a schema-valid, evidence-cited ETH decision and follow-up chat answer over fixture research; deterministic policy recorded a paper-only `NO_ACTION`, and chat left the portfolio unchanged. The live RYO adapter remains untested. A recurring worker, richer imported UI, deployment, and live RYO evidence remain unfinished.
 
-The track descriptions and RYO tool names come from the user's brief. Official eligibility, deadlines, submission requirements, tool schemas, supported networks, provider access, and model availability have not been independently verified. This document makes no claim about those details. Verify them with official event and provider documentation before implementation or submission.
+The official hackathon overview and MCP Builder Guide were checked on September 23, 2026. They confirm an October 3, 2026 at 23:59 JST deadline, a six-tool authenticated read-only research surface, and server-held practice trades. The deployed catalog remains authoritative and still requires a builder credential; model availability and live response fields beyond the public envelope have not been tested in this workspace.
 
 ## Contents
 
@@ -54,14 +54,14 @@ Example journey:
 
 Project acceptance gates, not independently verified judging rules:
 
-- [ ] A market scan and a selected-token analysis use verified live RYO integrations.
+- [ ] A market scan and a selected-token analysis use verified live RYO calls. The adapter matches the published REST contract, but live calls remain untested.
 - [ ] Safety and comparison results are integrated; unavailable capabilities are explicitly disclosed.
 - [ ] Every completed decision cites persisted evidence and includes contrary evidence or missing information.
-- [ ] The simulation can demonstrate BUY, HOLD, and SELL with deterministic, testable accounting.
+- [x] Fixture mode demonstrates deterministic BUY/HOLD/SELL accounting with explicit fees and adverse slippage.
 - [ ] A stale or incomplete critical input prevents execution and shows the reason.
 - [ ] Refresh, retry, concurrency, and restart cannot apply a simulated trade twice.
 - [ ] Dashboard summary, chart data, explanation, and history all identify the same run and data mode.
-- [ ] A dedicated chat section answers market and RYO-derived-data questions with source timestamps, evidence links, and persistent follow-up context.
+- [x] A minimal dedicated chat section answers fixture market and saved-decision questions with source timestamps and persisted evidence IDs. Richer LLM follow-ups remain pending.
 - [ ] Chat distinguishes retrieved facts, derived calculations, and AI interpretation; missing or stale data is explicit, and chatting never applies a simulated trade.
 - [ ] A user can enable and stop bounded recurring scans, with cadence and last/next run visible.
 - [ ] One fresh setup and one complete browser journey are verified before claiming a working MVP.
@@ -119,16 +119,18 @@ The server owns orchestration, provider credentials, validated data, policy, and
 
 ## RYO integration
 
-These are tool names supplied in the brief, **not verified SDK signatures**:
+The official MCP Builder Guide currently documents these six tools. The live authenticated catalog at `GET /api/mcp/tools` is authoritative:
 
 | Tool | Intended role | Evidence to preserve |
 |---|---|---|
 | `scan_market` | Discover candidates and overview changes | Universe, filters, timestamp, ranking inputs, coverage |
 | `analyze_token` | Inspect one token's market behavior | Stable token identity, metrics, units, price basis, observation times |
-| `check_safety` | Identify available risk flags | Findings, severity, source, coverage, unavailable checks |
+| `deep_analysis` | Comprehensive token evidence, including risks and optional profile/derivatives coverage | Market, technical, risk, coverage, preview-plan fields |
 | `compare_tokens` | Compare selected candidates on the same basis | Token identities, matching periods/units, comparative metrics |
+| `monitor_market_sentiment_shift` | Seven-day sentiment change | Observation dates, coverage, regime, explicit gaps |
+| `market_overview` | Broad market context | Regime, totals, dominance, sentiment, breadth, movers |
 
-Before writing an adapter, verify official access instructions, transport, authentication, request/response schemas, network coverage, rate limits, and errors. Do not assume REST, MCP, or an npm package until confirmed. Use the smallest real read-only call as the integration gate.
+The implemented server-side REST adapter posts a bare argument object to `/tools/{tool}/call`, authenticates with `RYO_MCP_KEY`, validates the public result envelope, and uses a 60-second timeout. Before enabling live mode, query the catalog, verify the builder credential/quota, and run the smallest real read-only call. Live mode requires both a RYO key and the Gemini adapter. The current live smoke command verifies only the bounded RYO `analyze_token` call; it does not invoke Gemini or modify the paper ledger.
 
 Normalize observations into evidence records containing an ID, run ID, tool, sanitized parameters, token/network identity, source timestamp, retrieval timestamp, units, normalized values, data mode, and a redacted raw-response reference/hash. Preserve failures and missing fields. A missing value is not zero; missing safety coverage is not a clean bill of health.
 
@@ -138,7 +140,9 @@ Apply bounded timeouts, retries with backoff, caching with explicit expiry, and 
 
 ## Agent decisions and evidence
 
-Use one configurable reasoning adapter initially. Gemini and Big Pickle are candidates named by the user; exact provider identity, endpoint, model ID, structured-output support, access, and costs must be checked before selecting either. Do not assume an OpenAI-compatible endpoint or interchangeable SDKs.
+The selected hosted reasoning provider is Google Gemini through the official `@google/genai` SDK. The default hosted model ID is `gemini-3.5-flash-lite`, configurable through `LLM_MODEL` because model access can vary by project. The original `gemini-2.5-flash` selection returned a provider 404 for this new project on September 23, 2026; the recommended 3.6 Flash then remained unavailable through bounded retries because of provider demand. The stable low-latency 3.5 Flash-Lite model supports structured output and a free tier, making it the explicit prototype default. The adapter requests JSON structured output with minimal thinking at temperature `0.2`, limits output to 2,048 tokens, applies a 60-second per-attempt timeout, validates the result with the shared schemas, verifies every evidence ID, permits one repair attempt for an invalid structured response, and retries explicit 429/5xx responses with bounded backoff. Its sanitized request, response, settings, input hash, model ID, and prompt version are stored in `model_calls`.
+
+`LLM_PROVIDER=fixture` keeps the deterministic offline adapter. `LLM_PROVIDER=gemini` requires `LLM_API_KEY` at server startup. Gemini can be paired with fixture RYO evidence first, which tests model behavior without requiring a RYO credential or presenting fixture data as live.
 
 The LLM receives only normalized evidence and bounded context. It proposes the research decision; ordinary code validates evidence references, enforces policy, and sizes any simulated order.
 
@@ -280,7 +284,7 @@ Use one TypeScript workspace to keep agent and UI contracts aligned. This is a s
 
 ```text
 apps/
-  web/                  # Dashboard and agent chat; proposed port 5173
+  web/                  # Dashboard and agent chat; local port 3000
   server/               # API, research/Q&A orchestration, scheduler; proposed port 4000
 packages/
   core/                 # Shared schemas, policy, decimal accounting
@@ -294,7 +298,7 @@ HISTORY.md
 README.md
 ```
 
-Only the three root Markdown files exist today. SQLite deployment requires a persistent writable volume and one supported writer topology. If hosting requires multiple instances or ephemeral storage, select durable PostgreSQL and adapt migrations before deployment; do not silently lose the ledger on redeploy.
+The workspace now implements this layout. SQLite deployment requires a persistent writable volume and one supported writer topology. If hosting requires multiple instances or ephemeral storage, select durable PostgreSQL and adapt migrations before deployment; do not silently lose the ledger on redeploy.
 
 ## API contract
 
@@ -320,9 +324,9 @@ The server generates authoritative IDs and enforces limits. Return structured er
 
 ## Setup contract
 
-**Do not run these commands yet: no package manifest, lockfile, environment template, or scripts exist.** When implementation is requested, scaffold the workspace, pin a compatible Node version and dependencies, create migrations, and implement the following interface.
+Node.js 22.13 or newer and npm are required. From the repository root, install from the committed lockfile with `npm ci`, then use the implemented commands below. Fixture mode is the default and performs no RYO or hosted-model calls.
 
-| Command to implement | Expected behavior |
+| Command | Current behavior |
 |---|---|
 | `npm ci` | Install from the committed lockfile after its initial creation |
 | `npm run doctor` | Validate redacted configuration and local storage readiness; no inference |
@@ -331,20 +335,20 @@ The server generates authoritative IDs and enforces limits. Return structured er
 | `npm run lint` / `npm run typecheck` | Static checks |
 | `npm test` | Offline policy, accounting, persistence, and adapter fixture checks |
 | `npm run test:e2e` | Browser journey against isolated fixture data |
-| `npm run smoke:live` | Bounded real RYO/model research run and paper-only simulation |
-| `npm run replay -- --run-id <id>` | Verify saved policy/accounting in isolation; no portfolio mutation |
+| `npm run smoke:live` | Bounded real RYO `analyze_token` request only; no model call or ledger write |
+| `npm run replay -- --run-id <id>` | Reserved CLI contract; currently reports that replay is the next persistence milestone and performs no mutation |
 | `npm run build` / `npm run start` | Build and start the supported deployment |
 
-Create a placeholder-only `.env.example` during scaffolding. Proposed application settings:
+The committed `.env.example` contains placeholder-only local settings:
 
 ```dotenv
 DATA_MODE=fixture
 PORT=4000
-WEB_ORIGIN=http://localhost:5173
+WEB_ORIGIN=http://localhost:3000
 DATABASE_PATH=./data/tradesense.sqlite
-LLM_PROVIDER=REPLACE_WITH_VERIFIED_PROVIDER
-LLM_MODEL=REPLACE_WITH_VERIFIED_MODEL_ID
-LLM_API_KEY=REPLACE_LOCALLY
+LLM_PROVIDER=gemini
+LLM_MODEL=gemini-3.5-flash-lite
+LLM_API_KEY=
 SIM_INITIAL_CASH=10000
 SIM_FEE_BPS=10
 SIM_SLIPPAGE_BPS=10
@@ -355,17 +359,17 @@ SCHEDULER_ENABLED=false
 SCAN_INTERVAL_SECONDS=300
 ```
 
-RYO transport/authentication settings, critical evidence freshness windows, watchlist/call limits, and session configuration must be added after their contracts are verified. Do not invent a provider URL or secret name as though it were official. Fixture mode uses explicit local adapters and performs no model or RYO requests; live mode rejects missing or placeholder configuration.
+With no `.env`, both research and reasoning use deterministic fixtures and make no external requests. To test Gemini against fixture market evidence, copy `.env.example` to `.env`, keep `DATA_MODE=fixture`, and add the Gemini API key. To enable live RYO research later, also set `DATA_MODE=live` and add `RYO_MCP_KEY`; live mode rejects missing configuration.
 
 Load server configuration explicitly. Never place provider credentials in browser-exposed `VITE_*` variables, logs, screenshots, or committed files. Protect hosted model usage with session ownership, rate limits, and operator-configured cost/request caps. Live research may incur provider fees even though all trades are simulated; use configured access and spending authorization.
 
 ## Build milestones
 
-This is an ordered build plan, not a claim about the event's deadline.
+This is the remaining ordered build plan. The official submission deadline checked on September 23, 2026 is October 3, 2026 at 23:59 JST.
 
 | Milestone | Deliverable | Completion gate |
 |---|---|---|
-| 1 — Verify and scaffold | Official integration notes, workspaces, schemas, database, fixtures | One real read-only RYO response understood; offline app starts |
+| 1 — Verify and scaffold | Official integration notes, workspaces, schemas, database, fixtures | Workspace and offline app complete; one real RYO call still required |
 | 2 — Research path | RYO adapter, model adapter, saved evidence and decision | One live selected-token run with valid evidence citations |
 | 3 — Simulation | Policy, decimal accounting, transactional ledger, recovery | BUY/HOLD/SELL and duplicate/restart cases pass |
 | 4 — Dashboard and chat | Overview, cards, charts, risk, explanation, portfolio/history, and dedicated market Q&A | Full browser journey; 30-second comprehension review; cited chat answer and contextual follow-up survive refresh |
@@ -422,7 +426,7 @@ Use clearly labeled fixtures to demonstrate specific edge cases; do not present 
 
 TradeSense is a research and simulation prototype. Safety checks have limited coverage; model explanations can be wrong; a quote-based paper fill does not model real liquidity, routing, latency, or execution. Paper returns do not establish future performance. The project is not financial advice.
 
-The next implementation step is to verify the official RYO interface and choose one accessible model provider, then scaffold a single-token end-to-end path. Later work can add broader coverage, better outcome evaluation, benchmark comparisons, and carefully specified backtesting after the core evidence and ledger behavior is proven.
+The next implementation step is to configure a RYO builder credential, discover the live catalog, capture one sanitized read-only response, and prove one complete live-evidence/Gemini/paper-simulation run. Then implement deterministic replay, restart recovery, and stronger concurrent portfolio updates before adding recurring scans. Later work can integrate the provided production UI, broaden coverage, and add carefully specified backtesting.
 
 ## Reference provenance
 
@@ -432,4 +436,12 @@ This plan uses the user's TradeSense brief as the product scope. The following A
 - `/home/bryan/Desktop/AgentPay/AGENTS.md` — coding-agent workflow and implementation guidance.
 - `/home/bryan/Desktop/AgentPay/HISTORY.md` — append-only action log and entry format.
 
-AgentPay's integrations, deployments, credentials, action history, event rules, and authorizations do not apply to TradeSense. No external documentation was consulted for this initial adaptation; official RYO/event/provider links should be added when verified.
+AgentPay's integrations, deployments, credentials, action history, event rules, and authorizations do not apply to TradeSense.
+
+Official sources checked September 23, 2026:
+
+- [RYO-CHAN Hackathon overview](https://dev.ryobuild.com/hackathon)
+- [RYO Builder MCP Guide](https://dev.ryobuild.com/docs/MCP-Builder-Guide.md)
+- [Gemini 3.5 Flash-Lite model](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
+- [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output)
+- [Gemini API pricing and free tier](https://ai.google.dev/gemini-api/docs/pricing)

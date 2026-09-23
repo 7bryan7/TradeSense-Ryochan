@@ -4,9 +4,9 @@
 
 Build the scoped TradeSense prototype in [README.md](README.md): RYO market research → evidence-based LLM decision → paper-only simulation → a dashboard explaining what changed and why, with a dedicated agent chat section for market and RYO-derived-data questions.
 
-**Selected tracks:** RYO-CHAN Hackathon 2026 Track 01 — Autonomous Agents and Track 02 — Dashboards & Interfaces, as described in the user's brief. Official event requirements and integration contracts remain unverified.
+**Selected tracks:** RYO-CHAN Hackathon 2026 Track 01 — Autonomous Agents and Track 02 — Dashboards & Interfaces. The official overview and MCP Builder Guide were checked on September 23, 2026; the authenticated live catalog remains authoritative.
 
-At initial drafting on September 20, 2026, this workspace contains documentation only. Architecture, routes, scripts, configuration, and tests in README.md are proposed contracts. Inspect the actual checkout before using them. Never report a planned integration, command, deployed app, or unrun test as working.
+Implementation began on September 23, 2026. The workspace now has a TypeScript scaffold, fixture research, deterministic paper simulation, SQLite persistence, API, minimal React UI, RYO REST adapter, agent chat, and a schema-validated Gemini adapter. A real Gemini 3.5 Flash-Lite decision and chat answer were verified against fixture evidence on September 23, 2026. Inspect the actual checkout and HISTORY.md for current verification. Never report the untested live RYO adapter, reserved replay CLI, recurring worker, imported production UI, deployment, or unrun tests as working.
 
 This file guides future work within the user's active task. A request to create or review documentation does not authorize scaffolding, dependency installation, live inference, scheduled jobs, deployment, or publication.
 
@@ -49,7 +49,7 @@ Do not add pages, chart effects, chains, or agents at the expense of an end-to-e
 
 ## Architecture and bootstrap contract
 
-The README proposes React/Vite for `apps/web`, Node/Express for `apps/server`, shared schemas/policy in `packages/core`, provider adapters in `packages/adapters`, and SQLite with versioned migrations for a single-process demo. Proposed ports are web 5173 and API 4000.
+The workspace uses React/Vite for `apps/web`, Node/Express for `apps/server`, shared schemas/policy in `packages/core`, provider adapters in `packages/adapters`, and SQLite with versioned migrations for a single-process demo. Local ports are web 3000 and API 4000.
 
 Use strict TypeScript and one package manager/lockfile once established. Verify current runtime/package compatibility before pinning versions. Keep provider, model, policy, simulation, persistence, and scheduling boundaries separately testable without creating unnecessary services.
 
@@ -75,7 +75,7 @@ These are intended script names, not commands available at initial drafting. Onc
 | `npm run dev` | Local web/API; schedules require explicit enablement |
 | `npm run lint` / `npm run typecheck` | Static checks |
 | `npm test` / `npm run test:e2e` | Isolated offline checks and browser journey |
-| `npm run smoke:live` | Bounded live research and paper simulation; may incur provider cost |
+| `npm run smoke:live` | Bounded live RYO `analyze_token` request; no model call or ledger mutation |
 | `npm run replay -- --run-id <id>` | Isolated verification of saved decision/policy; no live ledger writes |
 | `npm run build` / `npm run start` | Build and start configured application |
 
@@ -83,7 +83,7 @@ Default automated checks must not invoke live providers. A script name or live-m
 
 ## Evidence and RYO invariants
 
-- The supplied names `scan_market`, `analyze_token`, `check_safety`, and `compare_tokens` express intended capabilities. Verify real transport, schemas, authentication, quotas, and supported networks from official sources; do not invent endpoints or SDK symbols.
+- The official guide currently publishes `market_overview`, `scan_market`, `analyze_token`, `deep_analysis`, `compare_tokens`, and `monitor_market_sentiment_shift`. It explicitly has no symbol-only safety tool. Use `deep_analysis` risk/profile coverage when appropriate and never invent `check_safety`. Discover the authenticated catalog at startup before relying on the list.
 - Preserve token identity by network/address where available, units, time windows, source time, retrieval time, coverage, mode, tool parameters, and redacted provenance for each observation.
 - Never turn unknown fields into zero, missing safety checks into “safe,” or a live failure into fixture success. Mark partial/unavailable data explicitly.
 - Enforce configured freshness windows. Cache retrieval does not make an old observation new. Refuse execution when critical coverage or freshness cannot be established.
@@ -92,7 +92,7 @@ Default automated checks must not invoke live providers. A script name or live-m
 
 ## Agent and explanation invariants
 
-- Gemini and Big Pickle are candidates, not verified configurations. Check provider identity, exact model ID, endpoint, structured output, access, and cost before selection.
+- Gemini is the selected hosted provider through the official `@google/genai` SDK. The default model is `gemini-3.5-flash-lite`; `gemini-2.5-flash` returned a provider 404 for this new project and 3.6 Flash returned repeated provider-demand 503 responses on September 23, 2026. Keep the model configurable because access and free-tier availability can vary by project. Real 3.5 Flash-Lite decision and chat inference have been verified over fixture evidence; live RYO evidence remains untested.
 - Give the model normalized evidence and bounded context. Validate its output with strict schemas and verify every referenced evidence ID.
 - Preserve action, supporting/counter evidence, risks, missing data, uncertain outlook/horizon/invalidation, and confidence as evidence strength rather than a promised probability of profit.
 - Store a concise user-facing rationale and tool trace. Do not request or expose private chain-of-thought as the reasoning log.

@@ -1,0 +1,32 @@
+{
+  "name": "tradesense",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "engines": { "node": ">=22.13.0" },
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build:packages": "npm run build -w @tradesense/core && npm run build -w @tradesense/adapters",
+    "build": "npm run build:packages && npm run build -w @tradesense/server && npm run build -w @tradesense/web",
+    "dev": "npm run build:packages && concurrently -n api,web -c cyan,magenta \"npm run dev -w @tradesense/server\" \"npm run dev -w @tradesense/web\"",
+    "start": "npm run start -w @tradesense/server",
+    "lint": "eslint .",
+    "typecheck": "npm run build:packages && npm run typecheck -w @tradesense/server && npm run typecheck -w @tradesense/web",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "doctor": "npm run doctor -w @tradesense/server",
+    "db:migrate": "npm run db:migrate -w @tradesense/server",
+    "smoke:live": "npm run smoke:live -w @tradesense/server",
+    "replay": "npm run replay -w @tradesense/server"
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "concurrently": "latest",
+    "eslint": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vitest": "latest"
+  }
+}
