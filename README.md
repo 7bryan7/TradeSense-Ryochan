@@ -4,11 +4,11 @@
 
 **RYO-CHAN Hackathon 2026 · Track 01: Autonomous Agents · Track 02: Dashboards & Interfaces**
 
-TradeSense is a proposed AI crypto-market analyst that scans markets, interprets evidence, explains a BUY / HOLD / SELL decision, and records the practice trade it would make. One dashboard connects market changes to the agent's explanation and simulated portfolio impact.
+TradeSense is a proposed AI crypto-market analyst that scans markets, interprets evidence, explains a BUY / HOLD / SELL decision, and records the practice trade it would make. One dashboard connects market changes to the agent's explanation and simulated portfolio impact. A dedicated agent chat section lets users ask questions about the market and data derived from RYO-CHAN, with evidence-linked answers and follow-up questions.
 
 > User chooses market/token → RYO tools fetch data → AI agent analyzes evidence → simulated decision → dashboard explains why
 
-**Status — September 20, 2026: documentation only.** This workspace contains the project plan, [coding-agent instructions](AGENTS.md), and [action history](HISTORY.md). Application code, integrations, scripts, tests, and deployment do not exist yet. Everything below is an implementation proposal unless explicitly marked otherwise.
+**Status — September 23, 2026: documentation only.** This workspace contains the project plan, [coding-agent instructions](AGENTS.md), and [action history](HISTORY.md). Application code, integrations, scripts, tests, and deployment do not exist yet. Everything below, including agent chat, is an implementation proposal unless explicitly marked otherwise.
 
 The track descriptions and RYO tool names come from the user's brief. Official eligibility, deadlines, submission requirements, tool schemas, supported networks, provider access, and model availability have not been independently verified. This document makes no claim about those details. Verify them with official event and provider documentation before implementation or submission.
 
@@ -22,6 +22,7 @@ The track descriptions and RYO tool names come from the user's brief. Official e
 - [Agent decisions and evidence](#agent-decisions-and-evidence)
 - [Simulation contract](#simulation-contract)
 - [Dashboard](#dashboard)
+- [Agent chat](#agent-chat)
 - [Storage and recovery](#storage-and-recovery)
 - [Proposed stack and layout](#proposed-stack-and-layout)
 - [API contract](#api-contract)
@@ -49,7 +50,7 @@ Example journey:
 | Track from the brief | TradeSense contribution | Evidence to demonstrate |
 |---|---|---|
 | 01 — Autonomous Agents | RYO research, LLM analysis, policy checks, durable practice-trade records | One complete run linking tool results to a decision and ledger event; replay and recovery without duplicate trades |
-| 02 — Dashboards & Interfaces | Prioritized market overview, token cards, charts, risk, explanation, and decision history | A viewer identifies the latest change, decision, supporting evidence, and risk within 30 seconds |
+| 02 — Dashboards & Interfaces | Prioritized market overview, token cards, charts, risk, explanation, decision history, and dedicated agent chat | A viewer identifies the latest change, decision, supporting evidence, and risk within 30 seconds, then asks evidence-grounded follow-up questions |
 
 Project acceptance gates, not independently verified judging rules:
 
@@ -60,6 +61,8 @@ Project acceptance gates, not independently verified judging rules:
 - [ ] A stale or incomplete critical input prevents execution and shows the reason.
 - [ ] Refresh, retry, concurrency, and restart cannot apply a simulated trade twice.
 - [ ] Dashboard summary, chart data, explanation, and history all identify the same run and data mode.
+- [ ] A dedicated chat section answers market and RYO-derived-data questions with source timestamps, evidence links, and persistent follow-up context.
+- [ ] Chat distinguishes retrieved facts, derived calculations, and AI interpretation; missing or stale data is explicit, and chatting never applies a simulated trade.
 - [ ] A user can enable and stop bounded recurring scans, with cadence and last/next run visible.
 - [ ] One fresh setup and one complete browser journey are verified before claiming a working MVP.
 
@@ -67,9 +70,9 @@ Project acceptance gates, not independently verified judging rules:
 
 ### Must ship
 
-One research agent, one selected market/network initially, a bounded token watchlist, one paper portfolio per demo session, and one dashboard. Start with manual analysis, then add an opt-in recurring worker after persistence and recovery work.
+One research agent, one selected market/network initially, a bounded token watchlist, one paper portfolio per demo session, and one dashboard with a dedicated agent chat section. Chat uses the same research tools and model adapter. Start with manual analysis and market Q&A, then add an opt-in recurring worker after persistence and recovery work.
 
-The agent gathers market evidence, evaluates a token and its safety, compares candidates when requested, produces a structured decision, passes it through deterministic simulation rules, and saves the result. The UI presents market overview, analysis cards, price/volume charts, risk status, AI explanation, simulated decision, portfolio, and prior decisions.
+The agent gathers market evidence, evaluates a token and its safety, compares candidates when requested, produces a structured decision, passes it through deterministic simulation rules, and saves the result. The UI presents market overview, analysis cards, price/volume charts, risk status, AI explanation, simulated decision, portfolio, prior decisions, and a conversational market-research area.
 
 ### Deferred
 
@@ -105,6 +108,11 @@ flowchart LR
     AGENT --> DB[(Durable database)]
     POLICY --> DB
     API --> DB
+    CHAT[Dedicated agent chat] --> API
+    API --> QA[Read-only Q&A orchestration]
+    QA --> RYO
+    QA --> MODEL
+    QA --> DB
 ```
 
 The server owns orchestration, provider credentials, validated data, policy, and ledger writes. The browser renders authoritative run records. A failed live dependency must never cause an automatic switch to fixture data.
@@ -195,6 +203,7 @@ Prioritize the latest change and its consequence over a wall of metrics:
 | Charts | Timestamped price/volume, explicit units/time range, simulated-fill markers |
 | Safety panel | Findings, source, age, coverage, unknown/unavailable status |
 | AI explanation | Supporting and contrary evidence, outlook, invalidation, uncertainty |
+| Agent chat | Dedicated conversation area for market questions, RYO-derived insights, cited answers, and follow-ups |
 | Paper portfolio | Virtual cash, holdings, realized/unrealized P&L, fees, valuation completeness |
 | History drawer | Prior runs, decision changes, tool trace, policy version, simulation records |
 
@@ -203,6 +212,35 @@ Show “Changed since previous comparable run” with measured deltas and the ev
 Support loading, partial data, no results, stale data, blocked analysis, provider errors, and completed runs. Keep the previous completed result visible with its timestamp while a new run is pending. Never mix a new chart with an old explanation without labeling both runs.
 
 Use accessible contrast, keyboard navigation, readable mobile layouts, and text/icons alongside risk colors. A chart must have a textual summary. Expose detailed evidence on demand so the main screen remains understandable in 30 seconds.
+
+## Agent chat
+
+Dedicate a clearly labeled **Ask TradeSense** section of the webapp to conversational research. It should be accessible from the dashboard as a persistent panel or tab, with a full-width view on smaller screens. Include a message history, input box, suggested questions, selected market/token context, and visible LIVE/FIXTURE and freshness labels.
+
+Example questions:
+
+- “What changed in the market over the last 24 hours?”
+- “What does RYO data show about this token's price and volume?”
+- “Compare these two tokens and explain the main differences.”
+- “Which safety flags were found, and which checks are unavailable?”
+- “Why did the agent choose HOLD in this analysis?”
+- “What evidence would change that outlook?”
+
+The intended chat flow is:
+
+1. Accept a question with explicit market/token context and, optionally, a selected prior run. Resolve ambiguous token names before fetching data.
+2. Retrieve the user's permitted saved evidence. For current-market questions, fetch missing or stale information through the verified read-only RYO tools within configured limits. For questions about an earlier decision, use that decision's saved snapshot and label any newer comparison separately.
+3. Generate a concise answer that distinguishes source observations, calculated metrics, and AI interpretation. Ground market-specific claims in persisted evidence; derived numbers must retain their inputs, units, time window, and calculation method.
+4. Validate citations and save the answer, evidence references, tool activity, and model/prompt metadata. Show clickable evidence details with source and observation time, plus limitations or uncertainty.
+5. Preserve context for follow-ups. Make a token, network, run, or data-mode change explicit instead of silently answering about the previous selection.
+
+General explanations such as “What is trading volume?” may be answered as educational context and labeled accordingly; they must not be presented as a current RYO finding. If a requested fact is absent, unsupported, or inaccessible, say what is missing. Old data may support a clearly labeled historical answer, never a claim to know the current market.
+
+Chat performs research only. It may explain an existing BUY/HOLD/SELL decision or link to the separate analysis/simulation flow, but sending a message must not create fills, change balances, enable schedules, or modify policy. Chat fetches persist evidence under a separate research record with `purpose=chat`; they never enter the simulation application's `APPLYING` stage.
+
+Use the same server-side model/RYO adapters, session checks, data-mode separation, and provider budgets as the rest of the product. Bound message length, conversation context, tool calls, output size, and concurrent requests. Market text and chat messages cannot override tool permissions. Validate cited evidence against the conversation owner's accessible records and render responses without executable HTML.
+
+Persist conversations and messages so refresh restores the discussion. Each answer records its own context and evidence snapshot; a later refresh must not rewrite old answers with new prices. Display pending, fetching, answering, complete, insufficient-data, and failed states. Retrying a message uses the same idempotency key and retrieves or resumes its persisted operation; do not create duplicate messages or repeat a completed provider call. An ambiguous interrupted provider call must be surfaced rather than blindly repeated.
 
 ## Storage and recovery
 
@@ -214,6 +252,8 @@ Use accessible contrast, keyboard navigation, readable mobile layouts, and text/
 | Decisions | Validated proposal, rationale, evidence links, model/prompt/policy versions |
 | Ledger events / fills | Run/decision ID, quantity, price, fees, cash and position deltas |
 | Schedules | Owner, token/watchlist, enabled flag, cadence, next slot, lease and limits |
+| Chat conversations / messages | Ownership, mode, ordered messages, per-message token/network/run context, idempotency key/input hash, status, answer, evidence citations, model/prompt metadata |
+| Chat research / tool calls | `purpose=chat`, message ID, evidence snapshots, derived calculation inputs/methods, tool parameters/status/timestamps, usage and errors; no ledger application |
 
 Run states: `QUEUED → FETCHING → ANALYZING → APPLYING → COMPLETED`, with explicit `BLOCKED`, `FAILED`, and `CANCELLED` outcomes. A completed run includes its simulation result even if no fill occurred.
 
@@ -223,7 +263,7 @@ Persist the decision before applying its trade. After a restart, resume from sav
 
 For recurring scans, use one durable job per schedule/time slot, prevent overlapping runs for the same portfolio, cap watchlist size and provider/model calls, and expose pause/stop. Disabling a schedule prevents new jobs; cancellation before application must win atomically against a trade commit. Browser polling alone is not autonomous scheduling.
 
-Separate fixture and live portfolios. Resetting a demo creates a new portfolio rather than deleting its audit trail. Session ownership protects runs, schedules, and portfolios; a run ID is not authentication.
+Separate fixture and live portfolios and conversations. Resetting a demo creates a new portfolio rather than deleting its audit trail. Session ownership protects runs, schedules, portfolios, conversations, messages, and their evidence; a record ID is not authentication. Conversation mode is fixed at creation. Bound retained chat history with a documented retention policy while preserving evidence references for retained answers.
 
 ## Proposed stack and layout
 
@@ -240,8 +280,8 @@ Use one TypeScript workspace to keep agent and UI contracts aligned. This is a s
 
 ```text
 apps/
-  web/                  # Dashboard; proposed port 5173
-  server/               # API, research orchestration, scheduler; proposed port 4000
+  web/                  # Dashboard and agent chat; proposed port 5173
+  server/               # API, research/Q&A orchestration, scheduler; proposed port 4000
 packages/
   core/                 # Shared schemas, policy, decimal accounting
   adapters/             # Verified RYO and model integrations
@@ -271,8 +311,12 @@ These are proposed application routes, not RYO endpoints:
 | `POST /api/schedules` | Create a bounded recurring analysis schedule |
 | `PATCH /api/schedules/:id` | Enable, pause, or change an owned schedule within server limits |
 | `POST /api/runs/:id/cancel` | Cancel pending work before simulation application |
+| `POST /api/chat/conversations` | Create an owned conversation with fixed data mode and initial market/token context |
+| `GET /api/chat/conversations` | List the session's conversations with pagination |
+| `GET /api/chat/conversations/:id` | Retrieve owned context and paginated messages, statuses, and evidence references |
+| `POST /api/chat/conversations/:id/messages` | Accept a bounded question, explicit context and optional run reference, plus idempotency key; enqueue research-only Q&A |
 
-The server generates authoritative IDs and enforces limits. Return structured errors `{ code, message, requestId, retryable }`. Keep secrets and stack traces out of responses. Poll persisted state first; streaming is optional polish.
+The server generates authoritative IDs and enforces limits. Return structured errors `{ code, message, requestId, retryable }`. Keep secrets and stack traces out of responses. Poll persisted state first; streaming is optional polish. Chat submission returns the persisted message/operation ID and status; poll the conversation to retrieve completion. Enforce conversation ownership and validate linked run/evidence access. Reusing a message idempotency key with different text or context returns `409`.
 
 ## Setup contract
 
@@ -324,7 +368,7 @@ This is an ordered build plan, not a claim about the event's deadline.
 | 1 — Verify and scaffold | Official integration notes, workspaces, schemas, database, fixtures | One real read-only RYO response understood; offline app starts |
 | 2 — Research path | RYO adapter, model adapter, saved evidence and decision | One live selected-token run with valid evidence citations |
 | 3 — Simulation | Policy, decimal accounting, transactional ledger, recovery | BUY/HOLD/SELL and duplicate/restart cases pass |
-| 4 — Dashboard | Overview, cards, charts, risk, explanation, portfolio/history | Full browser journey; 30-second comprehension review |
+| 4 — Dashboard and chat | Overview, cards, charts, risk, explanation, portfolio/history, and dedicated market Q&A | Full browser journey; 30-second comprehension review; cited chat answer and contextual follow-up survive refresh |
 | 5 — Autonomy and hardening | Bounded recurring worker, pause/cancel, rate limits | Durable schedule and no overlapping/double-applied run |
 | 6 — Demo readiness | Fresh setup, live evidence, failure demo, deployment plan | Rehearsed demo and accurate limitations |
 
@@ -340,6 +384,8 @@ Required behavioral checks during implementation:
 - Same request retry, changed input under an existing key, concurrent portfolio updates, and restart after decision persistence.
 - Schedule overlap, disabling/cancelling near application, and live/fixture data separation.
 - UI loading/error states, keyboard use, consistent run IDs, and a BUY → HOLD → SELL fixture journey.
+- Chat evidence citations, derived calculations, follow-up context, token changes, historical versus current answers, and missing/stale-data responses.
+- Chat ownership isolation, prompt injection, safe rendering, usage limits, duplicate-message/restart recovery, and proof that chat cannot write the paper ledger or enable schedules.
 - A separately identified live smoke run using real RYO data and the selected model, without real orders.
 
 | Symptom | Check first | Correct behavior |
@@ -360,7 +406,7 @@ Suggested three-minute narrative, subject to official event rules:
 1. **0:00–0:30:** Select a token and explain the two-track product.
 2. **0:30–1:15:** Run analysis; reveal source timestamps, safety coverage, and comparison evidence.
 3. **1:15–2:00:** Show the decision, opposing evidence, and the resulting paper trade or block.
-4. **2:00–2:30:** Open history, explain a changed decision, and show replay without duplicate fills.
+4. **2:00–2:30:** Ask the chat “Why HOLD?” and open its cited evidence; show the saved decision history and replay result without duplicate fills.
 5. **2:30–3:00:** Show schedule controls, an unavailable/stale-data state, and limitations.
 
 Use clearly labeled fixtures to demonstrate specific edge cases; do not present them as live research. Keep a genuine live-run recording if access permits.

@@ -2,7 +2,7 @@
 
 ## Purpose and current status
 
-Build the scoped TradeSense prototype in [README.md](README.md): RYO market research → evidence-based LLM decision → paper-only simulation → a dashboard explaining what changed and why.
+Build the scoped TradeSense prototype in [README.md](README.md): RYO market research → evidence-based LLM decision → paper-only simulation → a dashboard explaining what changed and why, with a dedicated agent chat section for market and RYO-derived-data questions.
 
 **Selected tracks:** RYO-CHAN Hackathon 2026 Track 01 — Autonomous Agents and Track 02 — Dashboards & Interfaces, as described in the user's brief. Official event requirements and integration contracts remain unverified.
 
@@ -41,7 +41,7 @@ This file guides future work within the user's active task. A request to create 
 2. Scaffold one TypeScript workspace, explicit fixture mode, shared schemas, and durable database migrations.
 3. Prove one real token research run with saved evidence and a schema-valid model decision.
 4. Implement deterministic paper accounting, policy, idempotency, and recovery.
-5. Connect the dashboard to persisted runs and demonstrate its 30-second summary.
+5. Connect the dashboard to persisted runs, demonstrate its 30-second summary, and implement evidence-linked agent chat with persistent follow-up context.
 6. Add bounded recurring scans with durable scheduling, pause/cancel, and usage limits.
 7. Verify fresh setup and live evidence, then prepare accurate demo and deployment documentation.
 
@@ -100,6 +100,18 @@ Default automated checks must not invoke live providers. A script name or live-m
 - HOLD is a completed decision; blocked/failed analysis is a separate state. Do not mask malformed output, stale evidence, or provider failure with a synthetic successful HOLD.
 - Store evidence snapshots, sanitized model inputs/output, model/generation settings, prompt/policy versions, and simulation configuration. A new model call is a new analysis; deterministic replay uses the saved decision.
 
+## Agent chat invariants
+
+- Build a dedicated **Ask TradeSense** section as an MVP feature, using the same verified RYO and model adapters. Support market summaries, token metrics/comparisons, safety questions, and explanations of saved decisions.
+- Make selected market/token/network, optional run context, data mode, and evidence age visible. Resolve ambiguous identities before tool use and handle context changes explicitly.
+- Use permitted saved evidence or bounded read-only RYO fetches for current questions. Explain historical decisions from their saved snapshots; label newer evidence separately. Educational explanations must not masquerade as live RYO findings.
+- Validate citations against persisted evidence owned or accessible by the session. Distinguish facts, derived calculations, and model interpretation; preserve calculation inputs, units, windows, and methods. Say when data is missing, stale, or unsupported.
+- Persist conversations, ordered messages, per-answer context/evidence, tool history, model/prompt versions, status, and idempotency records. Keep conversation mode fixed and live/fixture conversations separate. Refresh must preserve answers and timestamps.
+- Follow the README's chat route contracts. Validate ownership of conversations, messages, linked runs, and evidence on every request. Changed text/context under the same message key returns `409`; retries retrieve/resume the same operation without duplicating messages or repeating completed calls. Surface ambiguous interrupted provider calls rather than retrying them blindly.
+- Keep chat research under `purpose=chat` with no path to ledger application. Chat must not place even simulated trades, change balances/policy, or enable schedules; link to the separate analysis/simulation flow when relevant.
+- Enforce message/context/output and tool-call bounds, usage caps, and concurrency limits. Treat messages and retrieved content as untrusted inputs; sanitize rendered output and keep credentials server-side. Document chat retention limits.
+- Verify cited answers, follow-ups, context switching, stale/missing evidence, ownership isolation, injection resistance, retries/recovery, and the absence of trading or scheduling side effects.
+
 ## Paper-trading and persistence invariants
 
 Follow the README's simulation contract. Proposed defaults are 10,000 virtual USD, BUY capped at 5% of pre-trade equity, 20% per-token exposure, full-position SELL, 10 bps fee, 10 bps adverse slippage, and a 60-second execution-price age limit. Keep these versioned and visible.
@@ -115,11 +127,11 @@ Follow the README's simulation contract. Proposed defaults are 10,000 virtual US
 
 ## Interface and access
 
-The first screen must show the selected token, data mode/age, latest change, proposed decision, actual simulation outcome, main reasons, and strongest risk. Details expose charts, safety coverage, contrary evidence, tool history, and prior decisions.
+The first screen must show the selected token, data mode/age, latest change, proposed decision, actual simulation outcome, main reasons, and strongest risk. Details expose charts, safety coverage, contrary evidence, tool history, and prior decisions. Provide an accessible dedicated chat panel/tab with conversation history, input, suggested questions, evidence links, and explicit fetching/answering/insufficient-data/error states; use a full-width layout on small screens.
 
 Keep summaries, charts, and decisions tied to the same run. Clearly label previous results while a fresh run loads. Distinguish unknown, loading, stale, blocked, failed, skipped, and completed states. Use text with colors, keyboard access, responsive layout, and chart summaries.
 
-Protect owned runs, portfolios, and schedules with session authorization; a run ID is not a secret credential. Keep provider keys server-side and out of `VITE_*`, logs, errors, fixtures, and screenshots. Rate-limit hosted research and enforce operator cost/call caps. Do not bypass TLS or open arbitrary provider origins to fix connectivity.
+Protect owned runs, portfolios, schedules, conversations, messages, and evidence with session authorization; a record ID is not a secret credential. Keep provider keys server-side and out of `VITE_*`, logs, errors, fixtures, and screenshots. Rate-limit hosted research and chat and enforce operator cost/call caps. Do not bypass TLS or open arbitrary provider origins to fix connectivity.
 
 ## Verification and troubleshooting
 

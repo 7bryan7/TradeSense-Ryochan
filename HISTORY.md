@@ -50,3 +50,14 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: Passed all documentation checks and source-hash comparisons. AGENTS.md is 14,167 bytes, below 32 KiB. No application tests were run because application code and scripts do not exist. Official event requirements, RYO schemas, model access, and live integrations remain unverified and are labeled accordingly.
 - External side effects: None; local documentation and read-only validation only.
 - Outcome / next step: Delivered the three requested planning documents; original references are unchanged. Future implementation begins with official integration verification and a single-token scaffold when requested.
+
+### 20260923T043054Z-root-agent-chat-scope — Add dedicated market-research chat to the MVP
+
+- Recorded at: 2026-09-23 04:30:54 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Update the project files to include a dedicated webapp chat section where users query the agent about markets and RYO-CHAN-derived data.
+- Actions: Read project instructions, existing history, and the README; followed a truncated combined read with a targeted scope/architecture read. Confirmed the workspace still contains only the three project documents. Added Ask TradeSense to MVP scope, track fit, acceptance gates, dashboard layout, architecture, persistence, proposed API routes, build milestone, verification, and demo. Specified evidence-linked answers, derived calculations, current versus historical context, read-only data retrieval, persistent follow-ups, failure states, and session/usage controls. Updated agent instructions with matching chat invariants. Kept simulation separate from chat and retained documentation-only status.
+- Files: Updated `README.md` and `AGENTS.md`; appended this entry to `HISTORY.md`.
+- Verification: Passed local Python checks for Markdown fences, trailing whitespace, final newlines, local links, contents anchors, shared script names, chat contract markers, and AGENTS.md size below 32 KiB. Confirmed earlier history was unchanged before appending. Application tests were not run because no application exists; live RYO/model integration remains unverified.
+- External side effects: None; local documentation changes only. No provider calls, inference, trades, schedules, deployment, or publication.
+- Outcome / next step: Dedicated market and RYO-data chat is now a documented MVP requirement. Implementation remains future work within the existing build plan.
