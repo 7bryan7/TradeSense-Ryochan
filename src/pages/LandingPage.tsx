@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -20,6 +20,26 @@ import { useAuth } from '../context/AuthContext';
 
 export const LandingPage: React.FC = () => {
   const [activeStage, setActiveStage] = useState(0);
+  const lowerVideoSection = useRef<HTMLDivElement>(null);
+  const [loadLowerVideo, setLoadLowerVideo] = useState(false);
+
+  useEffect(() => {
+    const section = lowerVideoSection.current;
+    if (!section) return;
+    if (!('IntersectionObserver' in window)) {
+      setLoadLowerVideo(true);
+      return;
+    }
+    // Keep the below-the-fold video from competing with the hero download.
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.01) {
+        setLoadLowerVideo(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.01 });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
   const navigate = useNavigate();
   const { isAuthenticated, openAuthModal } = useAuth();
 
@@ -421,9 +441,10 @@ export const LandingPage: React.FC = () => {
           muted
           playsInline
           preload="auto"
+          poster="/assets/video/hero-poster.jpg"
           aria-hidden="true"
         >
-          <source src="/assets/video/Video%20Project%201.mp4" type="video/mp4" />
+          <source src="/assets/video/hero-optimized.mp4" type="video/mp4" />
         </video>
         <div className="absolute inset-0 -z-10 bg-[#0C0E17]/35" aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0C0E17] to-transparent -z-10 pointer-events-none" />
@@ -467,9 +488,9 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Middle & Lower Sections with Cinematic Floating Crypto Video Background (5-Stage Architecture, Value Pillars, CTA Banner) */}
-      <div className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
+      <div ref={lowerVideoSection} className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
         {/* Background Video: Floating 3D Golden Crypto Coins */}
-        <video
+        {loadLowerVideo && <video
           className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90 pointer-events-none"
           autoPlay
           loop
@@ -479,7 +500,7 @@ export const LandingPage: React.FC = () => {
           aria-hidden="true"
         >
           <source src="/assets/video/309316_medium.mp4" type="video/mp4" />
-        </video>
+        </video>}
         {/* Cinematic dark gradients for legibility & subtle edge feathering */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0C0E17] via-[#0C0E17]/45 to-[#0C0E17]" aria-hidden="true" />
         <div className="absolute inset-0 -z-10 bg-[#0C0E17]/20 backdrop-blur-[1px]" aria-hidden="true" />

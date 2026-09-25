@@ -17,7 +17,7 @@ import './dashboard.css';
 
 export const DashboardPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { tokens, currentToken, selectedTokenId, setSelectedTokenId, timeframe, setTimeframe, candles } = useMarket(searchParams.get('asset') || 'btc');
+  const { tokens, currentToken, selectedTokenId, setSelectedTokenId, timeframe, setTimeframe, candles, candleError } = useMarket(searchParams.get('asset') || 'btc');
   useEffect(() => {
     const asset = searchParams.get('asset');
     if (asset && tokens.some(token => token.id === asset)) setSelectedTokenId(asset);
@@ -98,7 +98,8 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <span className="text-xs text-slate-400">Not live market history</span>
               </div>
-              <CandleChart key={selectedTokenId} candles={candles} timeframe={timeframe} onTimeframeChange={setTimeframe} pairName={currentToken.pair} simulatedFillPrice={filled ? selectedRun?.simulation.order.fillPrice : undefined} takeProfitPrice={undefined} stopLossPrice={undefined} />
+              <CandleChart key={`${selectedTokenId}-${timeframe}`} candles={candles} timeframe={timeframe} onTimeframeChange={setTimeframe} pairName={currentToken.pair} simulatedFillPrice={filled ? selectedRun?.simulation.order.fillPrice : undefined} takeProfitPrice={undefined} stopLossPrice={undefined} />
+              {candleError && <p role="alert" className="mt-2 text-xs text-amber-200">{candleError}</p>}
               <p className="mt-2 text-xs leading-relaxed text-slate-400">Each candle shows the open, high, low, and close. Bars below show volume. Green means the price rose; red means it fell.</p>
             </section>
 

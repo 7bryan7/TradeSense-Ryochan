@@ -674,3 +674,36 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: `npm run typecheck` passed (exit code 0). `npm run build` passed (exit code 0).
 - External side effects: Git push to remote repository.
 - Outcome / next step: Git `build` branch updated and synchronized with latest verified build.
+
+### 20260925T172859Z-frontend-polish-review — Frontend review and implementation
+
+- Recorded at: 2026-09-25 17:28:59 UTC.
+- Agent: Codex primary agent.
+- Task: Review and improve the frontend for a professional hackathon demo.
+- Actions: Reviewed repository guidance, README, recent history, landing/navigation, dashboard, fixtures, chart and market hook. Rebuilt landing hierarchy with a fixture-based preview, clearer workflow, quieter video, motion controls, responsive layout and keyboard focus states. Removed unsupported landing claims about live integrations, guaranteed correctness and calibrated probabilities. Improved navigation breakpoints and menu semantics. Scoped chart responses to asset/timeframe with cancellation; tightened dashboard header spacing.
+- Files: `src/pages/LandingPage.tsx`, `src/pages/landing.css`, `src/components/landing/LandingNav.tsx`, `src/pages/DashboardPage.tsx`, `src/pages/dashboard.css`, `src/components/dashboard/CandleChart.tsx`, `src/hooks/useMarket.ts`, `README.md`, `HISTORY.md`.
+- Verification: Initial typecheck passed. Local Vite startup initially failed with sandbox spawn EPERM; approved escalated startup passed at localhost:5173. Browser skill initialization and documented discovery returned no available browsers; visual journey blocked. Two patch attempts failed validation with no changes from those attempts; reapplied corrected patches. PowerShell UTC query corrected after unsupported Get-Date flag. Final build/checks pending.
+- External side effects: Local development server only; no deployment, provider inference, installs, or external messages.
+- Outcome / next step: Complete production build and diff checks; report browser verification limitation.
+
+### 20260925T173701Z-restore-original-landing — Restore original landing only
+
+- Recorded at: 2026-09-25 17:37:01 UTC.
+- Agent: Codex primary agent.
+- Task: Revert the landing redesign; preserve dashboard improvements per clarified user request.
+- Actions: Restored original LandingPage and LandingNav and removed the new landing.css. Restored README to remove redesign documentation. Initial broad revert also restored dashboard files; after user clarification, reapplied dashboard compact header, chart empty/error states, and asset/timeframe response guards. Preserved existing history. Git restore failed on index-lock permissions and a Node subprocess fallback failed with EPERM; reading committed files through PowerShell succeeded.
+- Files: `src/pages/LandingPage.tsx`, `src/components/landing/LandingNav.tsx`, removed `src/pages/landing.css`, `README.md`, `src/pages/DashboardPage.tsx`, `src/pages/dashboard.css`, `src/components/dashboard/CandleChart.tsx`, `src/hooks/useMarket.ts`, `HISTORY.md`.
+- Verification: Typecheck passed. Git diff confirms landing page, navigation and README match the original HEAD content; new landing stylesheet is absent. Browser verification not run (no connected browser). Production build not repeated for the restored landing.
+- External side effects: None; local file changes only.
+- Outcome / next step: Original landing restored, with prior dashboard improvements retained.
+
+### 20260925T174117Z-hero-video-loading — Reduce landing hero media load
+
+- Recorded at: 2026-09-25 17:41:17 UTC.
+- Agent: Codex primary agent.
+- Task: Fix slow hero-video loading while retaining the original landing design.
+- Actions: Inspected the 22,217,227-byte, 1080p/30fps, 10-second original and concurrent lower-video preload. Used installed FFmpeg to produce H.264 CRF 24 / medium / yuv420p / faststart video without unused audio (1,946,700 bytes, about 91% smaller). Preserved full duration, resolution, and original source file. Extracted a 1280px first-frame JPEG poster (114,101 bytes), inspected it, and added high-priority image preload. Changed hero source and poster only; lower background video now mounts when its section reaches 1% intersection, with observer cleanup and an unsupported-browser fallback.
+- Files: `src/pages/LandingPage.tsx`, `index.html`, new `public/assets/video/hero-optimized.mp4`, new `public/assets/video/hero-poster.jpg`, `HISTORY.md`.
+- Verification: Typecheck and final production build passed; FFprobe confirmed H.264 1920x1080 at 30fps with full clip duration. Full FFmpeg decode passed. MP4 box inspection confirmed metadata precedes media data for progressive playback. Built media matches source bytes. Diff whitespace check passed with line-ending notices only. Browser discovery returned no available browser, so interactive scrolling/autoplay and network-timing measurements remain unverified.
+- External side effects: None; local media generation and build only, no installs or publication.
+- Outcome / next step: Smaller progressively playable hero asset and first-frame fallback implemented without changing the landing layout. Actual startup time still depends on the browser and connection.

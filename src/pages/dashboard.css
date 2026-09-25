@@ -1,7 +1,7 @@
 .studio-app .dashboard-page { background: transparent; }
 .studio-app .dashboard-glass-header { background: rgba(12, 14, 23, .80); border-color: rgba(255, 255, 255, .08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 .studio-app .dashboard-content { max-width: 1500px; padding-top: 24px; }
-.studio-app .dashboard-hero { position: relative; min-height: 200px; padding: 30px; border: 1px solid rgba(76, 224, 122, 0.25); border-radius: 22px; overflow: hidden; background: linear-gradient(100deg, #131c26, #14241d 55%, #0e1620); }
+.studio-app .dashboard-hero { position: relative; min-height: 148px; padding: 24px; border: 1px solid rgba(76, 224, 122, 0.20); border-radius: 16px; overflow: hidden; background: linear-gradient(100deg, #131c26, #14241d 55%, #0e1620); }
 .studio-app .dashboard-hero::before { content: ''; position: absolute; inset: 0; background: url('/assets/orbit-field.svg') right center / 670px auto no-repeat; opacity: .75; pointer-events: none; }
 .studio-app .dashboard-hero > * { position: relative; z-index: 1; }
 .studio-app .dashboard-hero h1 { font-size: clamp(26px, 3vw, 39px); letter-spacing: -.045em; }
@@ -23,4 +23,3 @@
 .studio-app .dashboard-glass-card::before, .studio-app .dashboard-glass-surface::before { content: none; }
 @media (hover: hover) { .studio-app .dashboard-watchlist button:hover { transform: translateY(-2px); border-color: rgba(76, 224, 122, 0.4); background: linear-gradient(145deg, rgba(26, 34, 52, 0.92), rgba(16, 22, 34, 0.94)); } }
 @media (max-width: 767px) { .studio-app .dashboard-hero { padding: 23px; } .studio-app .dashboard-hero::before { opacity: .35; } .studio-app .dashboard-brief-grid > div + div { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--studio-line); } }
-

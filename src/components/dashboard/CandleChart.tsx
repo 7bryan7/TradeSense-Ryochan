@@ -133,7 +133,9 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
       {/* SVG Interactive Candlestick Area */}
       <div className="relative w-full h-[360px] select-none pt-2 overflow-hidden">
+        {candles.length === 0 && <div role="status" className="absolute inset-0 z-10 flex items-center justify-center bg-[#11191f] text-sm text-slate-400">Chart data is not available yet.</div>}
         <svg
+          aria-hidden={candles.length === 0}
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-full"
           preserveAspectRatio="none"
