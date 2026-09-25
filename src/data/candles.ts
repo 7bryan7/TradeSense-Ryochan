@@ -1,16 +1,16 @@
 import { Candle, Timeframe } from '../types/market';
 
 // Generate realistic candlestick patterns matching FMFW & reference chart
-export function generateCandles(basePrice: number, count: number = 40, volatility: number = 0.008): Candle[] {
+export function generateCandles(basePrice: number, count: number = 40, volatility: number = 0.008, isBullish: boolean = true): Candle[] {
   const candles: Candle[] = [];
   const now = new Date('2026-09-20T14:32:00Z').getTime();
   const intervalMs = 15 * 60 * 1000; // 15m default
   
-  let currentPrice = basePrice * 0.97; // start slightly lower to show upward momentum
+  let currentPrice = isBullish ? basePrice * 0.97 : basePrice * 1.04;
   
   for (let i = count - 1; i >= 0; i--) {
     const timestamp = now - (i * intervalMs);
-    const isUp = Math.random() > 0.42; // slightly bullish bias for BTC
+    const isUp = isBullish ? Math.random() > 0.42 : Math.random() > 0.65;
     const change = currentPrice * volatility * (Math.random() * 0.9 + 0.1);
     
     const open = currentPrice;
@@ -21,10 +21,10 @@ export function generateCandles(basePrice: number, count: number = 40, volatilit
     
     candles.push({
       timestamp,
-      open: Math.round(open * 100) / 100,
-      high: Math.round(high * 100) / 100,
-      low: Math.round(low * 100) / 100,
-      close: Math.round(close * 100) / 100,
+      open: Math.round(open * 10000) / 10000,
+      high: Math.round(high * 10000) / 10000,
+      low: Math.round(low * 10000) / 10000,
+      close: Math.round(close * 10000) / 10000,
       volume,
     });
     
@@ -36,6 +36,7 @@ export function generateCandles(basePrice: number, count: number = 40, volatilit
     const last = candles[candles.length - 1];
     last.close = basePrice;
     last.high = Math.max(last.high, basePrice);
+    last.low = Math.min(last.low, basePrice);
   }
   
   return candles;

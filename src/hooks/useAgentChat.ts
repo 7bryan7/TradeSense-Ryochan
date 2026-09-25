@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatMessage, SuggestedPrompt, ToolInvocation } from '../types/chat';
 import { Token } from '../types/market';
 import { AgentRunRecord } from '../types/run';
@@ -58,6 +58,8 @@ export function useAgentChat(
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const generation = useRef(0);
+  useEffect(() => () => { generation.current += 1; }, []);
   const [currentToolTelemetry, setCurrentToolTelemetry] = useState<ToolInvocation[]>([]);
   const [suggestedPrompts] = useState<SuggestedPrompt[]>(DEFAULT_SUGGESTED_PROMPTS);
 
@@ -73,7 +75,8 @@ export function useAgentChat(
   const sendMessage = useCallback(
     async (text: string) => {
       const cleanText = text.trim();
-      if (!cleanText || isProcessing) return;
+      if (!cleanText || isProcessing || !currentToken) return;
+      const requestGeneration = ++generation.current;
 
       const userMsgId = `msg-user-${Date.now()}`;
       const agentMsgId = `msg-agent-${Date.now() + 1}`;
@@ -118,6 +121,7 @@ export function useAgentChat(
 
       // Phase 1: Tool invocation simulation
       setTimeout(() => {
+        if (requestGeneration !== generation.current) return;
         setMessages(prev =>
           prev.map(m =>
             m.id === agentMsgId
@@ -136,6 +140,7 @@ export function useAgentChat(
 
       // Phase 2: Full structured synthesis
       setTimeout(() => {
+        if (requestGeneration !== generation.current) return;
         const fullResponse = generateAgentResponse(cleanText, currentToken, currentRun, dataMode);
 
         setMessages(prev =>
@@ -159,6 +164,9 @@ export function useAgentChat(
   );
 
   const clearConversation = useCallback(() => {
+    generation.current += 1;
+    setIsProcessing(false);
+    setCurrentToolTelemetry([]);
     setMessages([INITIAL_AGENT_MESSAGE]);
     try {
       localStorage.removeItem(STORAGE_KEY);

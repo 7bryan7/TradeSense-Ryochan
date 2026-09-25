@@ -249,10 +249,10 @@ export const LandingPage: React.FC = () => {
           <div className="rounded-xl bg-[#090B12] border border-[rgba(251,237,224,0.12)] p-4 sm:p-5 font-mono text-xs space-y-3.5 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-[rgba(251,237,224,0.08)]">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-purple-400" />
+                <TrendingUp className="w-4 h-4 text-[#38F997]" />
                 <span className="text-[#FBEDE0] font-bold">CALIBRATED PROBABILITY ODDS</span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-purple-400/10 text-purple-400 border border-purple-400/30">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-[#38F997]/10 text-[#38F997] border border-[#38F997]/30">
                 PROBABILISTIC GAUGE
               </span>
             </div>
@@ -466,8 +466,26 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 5-Stage Autonomous Execution Pipeline (Dribbble & Awwwards Caliber Architectural Console) */}
-      <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto relative z-10 border-t border-[rgba(251,237,224,0.08)]">
+      {/* Middle & Lower Sections with Cinematic Floating Crypto Video Background (5-Stage Architecture, Value Pillars, CTA Banner) */}
+      <div className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
+        {/* Background Video: Floating 3D Golden Crypto Coins */}
+        <video
+          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90 pointer-events-none"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        >
+          <source src="/assets/video/309316_medium.mp4" type="video/mp4" />
+        </video>
+        {/* Cinematic dark gradients for legibility & subtle edge feathering */}
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0C0E17] via-[#0C0E17]/45 to-[#0C0E17]" aria-hidden="true" />
+        <div className="absolute inset-0 -z-10 bg-[#0C0E17]/20 backdrop-blur-[1px]" aria-hidden="true" />
+
+        {/* 5-Stage Autonomous Execution Pipeline (Dribbble & Awwwards Caliber Architectural Console) */}
+        <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#FBEDE0] tracking-tight">
             5 Stages of Explainable AI
@@ -561,26 +579,8 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Lower Sections with Cinematic Floating Crypto Video Background */}
-      <div className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
-        {/* Background Video: Floating 3D Golden Crypto Coins */}
-        <video
-          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90 pointer-events-none"
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          aria-hidden="true"
-        >
-          <source src="/assets/video/309316_medium.mp4" type="video/mp4" />
-        </video>
-        {/* Cinematic dark gradients for legibility & subtle edge feathering */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0C0E17] via-[#0C0E17]/45 to-[#0C0E17]" aria-hidden="true" />
-        <div className="absolute inset-0 -z-10 bg-[#0C0E17]/20 backdrop-blur-[1px]" aria-hidden="true" />
-
         {/* Primary Value Pillars */}
-        <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto relative z-10">
+        <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto relative z-10 border-t border-[rgba(251,237,224,0.08)]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="p-6 rounded-2xl bg-[#161926]/75 backdrop-blur-md border border-[rgba(251,237,224,0.12)] hover:border-[#38F997]/30 transition-all duration-300 shadow-2xl hover:-translate-y-1 space-y-3">
               <div className="w-10 h-10 rounded-xl bg-[#38F997]/10 border border-[#38F997]/20 flex items-center justify-center text-[#38F997]">

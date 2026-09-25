@@ -1,3 +1,4 @@
+import { PageIntro } from '../components/common/PageIntro';
 import React from 'react';
 import { mockTokens } from '../data/tokens';
 import { Bookmark, Star, ArrowUpRight, ArrowDownRight, Bell, Sparkles } from 'lucide-react';
@@ -5,25 +6,10 @@ import { Link } from 'react-router-dom';
 
 export const WatchlistPage: React.FC = () => {
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <Bookmark className="w-6 h-6 text-[#4ce07a]" />
-            Active Token Watchlist
-          </h1>
-          <p className="text-xs text-[#8F9CAE] font-mono mt-1">
-            Pinned candidates monitored by the autonomous recurring scan engine
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-white bg-[#1E222B] px-3.5 py-1.5 rounded-full border border-white/[0.08] shadow-sm">
-            6 Tokens Monitored
-          </span>
-        </div>
-      </div>
+    <div className="studio-page">
+      <PageIntro eyebrow="KEEP A CLOSER EYE" title="Your market shortlist." description="A curated sample watchlist. Explore an asset's movement, then open its dashboard for the full picture.">
+        <span className="studio-chip">{mockTokens.length} sample assets</span>
+      </PageIntro>
 
       {/* Watchlist Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -60,7 +46,7 @@ export const WatchlistPage: React.FC = () => {
               <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono">
                 <span className="text-[#8F9CAE]">RSI: {t.metrics.rsi14}</span>
                 <Link
-                  to="/dashboard"
+                  to={`/dashboard?asset=${t.id}`}
                   className="text-[#4ce07a] hover:underline font-semibold flex items-center gap-1 transition-colors"
                 >
                   <Sparkles className="w-3.5 h-3.5" />

@@ -1,179 +1,84 @@
 import React, { useState } from 'react';
+import { Plus, PanelLeftClose, MessageSquare, ArrowUpRight } from 'lucide-react';
 import { useMarket } from '../hooks/useMarket';
-import { useAgentRun } from '../hooks/useAgentRun';
 import { AskTradeSensePanel } from '../components/chat/AskTradeSensePanel';
-import {
-  Sparkles,
-  Plus,
-  PanelLeftClose,
-  PanelLeft,
-  Clock,
-  ShieldCheck,
-} from 'lucide-react';
 
 export const ChatPage: React.FC = () => {
-  const { tokens, currentToken, setSelectedTokenId, dataMode } = useMarket('btc');
-  const { currentRun } = useAgentRun();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activePrompt, setActivePrompt] = useState<string | undefined>(undefined);
-  const [chatKey, setChatKey] = useState(0);
+  const { tokens, currentToken, selectedTokenId, setSelectedTokenId } = useMarket('btc');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
-  const handleNewChat = () => {
-    setActivePrompt(undefined);
-    setChatKey(prev => prev + 1);
-  };
-
-  if (!currentToken) {
-    return (
-      <div className="flex items-center justify-center h-[70vh] p-8 text-xs font-mono text-[#8F9CAE]">
-        <div className="w-5 h-5 rounded-full border-2 border-[#4ce07a] border-t-transparent animate-spin mr-2" />
-        <span>Initializing Gemini intelligence session...</span>
-      </div>
-    );
-  }
+  if (!currentToken) return <div className="studio-page text-slate-400" role="status">Preparing your research space…</div>;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#15171C]">
-      {/* ── Left Gemini Collapsible Sidebar ── */}
+    <div className="studio-chat-page relative flex h-full min-h-0 w-full overflow-hidden">
       {isSidebarOpen && (
-        <aside className="w-64 sm:w-72 bg-[#15171C] border-r border-white/[0.06] flex flex-col justify-between shrink-0 p-3 z-20 animate-fade-up">
-          <div className="space-y-4 overflow-y-auto">
-            {/* Sidebar Header & Toggle */}
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-[#4ce07a]/15 border border-[#4ce07a]/30 flex items-center justify-center">
-                  <Sparkles className="w-3.5 h-3.5 text-[#4ce07a]" />
-                </div>
-                <span className="text-xs font-semibold text-white tracking-tight">
-                  TradeSense Chat
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen(false)}
-                title="Collapse sidebar"
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] text-[#8F9CAE] hover:text-white transition-colors cursor-pointer"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* New Chat Button */}
+        <aside className="studio-chat-context flex shrink-0 flex-col p-4 z-20">
+          <div className="flex items-center justify-between mb-5">
+            <span className="studio-eyebrow text-[#4ce07a]">RESEARCH CONTEXT</span>
             <button
               type="button"
-              onClick={handleNewChat}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-white text-xs font-medium border border-white/[0.08] hover:border-[#4ce07a]/40 transition-all cursor-pointer shadow-xs"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+              aria-label="Close research context"
+              onClick={() => setIsSidebarOpen(false)}
             >
-              <Plus className="w-4 h-4 text-[#4ce07a]" />
-              <span>New chat</span>
+              <PanelLeftClose size={17} />
             </button>
-
-            {/* Token Context Switcher */}
-            <div className="space-y-1.5 pt-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#5E6A7D] font-bold px-2 block">
-                Active Asset Context
-              </span>
-              <div className="space-y-1">
-                {tokens.map(t => {
-                  const isSelected = t.id === currentToken.id;
-                  return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setSelectedTokenId(t.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono transition-all text-left cursor-pointer border ${
-                        isSelected
-                          ? 'bg-[#1E222B] text-white border-[#4ce07a]/40 shadow-xs'
-                          : 'bg-transparent text-[#8F9CAE] hover:text-white hover:bg-white/[0.03] border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-[#4ce07a]' : 'bg-transparent'}`} />
-                        <span className="font-bold">{t.symbol}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px]">
-                        <span>${t.metrics.price.toLocaleString()}</span>
-                        <span
-                          className={
-                            t.metrics.change24h >= 0 ? 'text-[#4ce07a]' : 'text-[#EF4444]'
-                          }
-                        >
-                          {t.metrics.change24h >= 0 ? '+' : ''}
-                          {t.metrics.change24h}%
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Audited Run Context */}
-            <div className="space-y-2 pt-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#5E6A7D] font-bold px-2 block">
-                Telemetry Anchor
-              </span>
-              <div className="p-3 rounded-xl bg-[#1E222B]/60 border border-white/[0.04] space-y-1.5 text-[11px] font-mono">
-                <div className="flex items-center justify-between text-[#8F9CAE]">
-                  <span>Run ID</span>
-                  <span className="text-white font-bold">{currentRun.id}</span>
-                </div>
-                <div className="flex items-center justify-between text-[#8F9CAE]">
-                  <span>Decision</span>
-                  <span
-                    className={`font-black ${
-                      currentRun.decision.action === 'BUY'
-                        ? 'text-[#4ce07a]'
-                        : currentRun.decision.action === 'SELL'
-                        ? 'text-[#EF4444]'
-                        : 'text-[#F59E0B]'
-                    }`}
-                  >
-                    {currentRun.decision.action} ({currentRun.decision.confidenceScore}%)
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[#5E6A7D] text-[10px]">
-                  <span>Telemetry Mode</span>
-                  <span className="text-[#4ce07a]">{dataMode}</span>
-                </div>
-              </div>
-            </div>
           </div>
-
-          {/* Sidebar Footer */}
-          <div className="p-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] font-mono text-[#5E6A7D]">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#4ce07a]" />
-              RYO Telemetry Online
-            </span>
-            <ShieldCheck className="w-3.5 h-3.5 text-[#4ce07a]" />
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-[#4ce07a]/40 text-xs font-semibold text-white hover:bg-[#4ce07a]/10 transition-all cursor-pointer"
+            onClick={() => { setResetKey(key => key + 1); setIsSidebarOpen(false); }}
+          >
+            <Plus size={15} className="text-[#4ce07a]" />
+            <span>New conversation</span>
+          </button>
+          <p className="text-[11px] font-mono uppercase tracking-wider text-slate-400 mt-6 mb-2.5">
+            Select Asset
+          </p>
+          <div className="space-y-2">
+            {tokens.filter(token => ['btc', 'eth', 'sol'].includes(token.id)).map(token => {
+              const active = selectedTokenId === token.id;
+              return (
+                <button
+                  type="button"
+                  key={token.id}
+                  aria-pressed={active}
+                  onClick={() => { setSelectedTokenId(token.id); setIsSidebarOpen(false); }}
+                  className={`w-full flex items-center justify-between p-3 text-left rounded-xl border text-xs transition-all cursor-pointer ${
+                    active
+                      ? 'border-[#4ce07a]/50 bg-[#4ce07a]/10 text-white shadow-[0_0_15px_rgba(76,224,122,0.12)]'
+                      : 'border-white/[0.06] bg-white/[0.02] text-slate-300 hover:border-white/20 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <span>
+                    <strong className="block text-white font-bold">{token.symbol}</strong>
+                    <span className="text-[11px] text-slate-400">{token.name}</span>
+                  </span>
+                  <ArrowUpRight size={14} className={active ? 'text-[#4ce07a]' : 'text-slate-500'} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="studio-note mt-auto bg-[#4ce07a]/[0.03] border-[#4ce07a]/15 text-slate-400 text-xs">
+            <MessageSquare size={16} className="text-[#4ce07a] mb-2" />
+            <p>Ask about signals, risks, or live metrics. Answers ground into verified sample telemetry.</p>
           </div>
         </aside>
       )}
 
-      {/* ── Main Gemini Chat Area ── */}
-      <main className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden bg-[#15171C]">
-        {/* Floating Sidebar Re-open Button (when sidebar is closed) */}
-        {!isSidebarOpen && (
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen(true)}
-            title="Expand sidebar"
-            className="absolute top-3.5 left-4 z-20 p-2 rounded-xl bg-[#1E222B] hover:bg-[#242934] text-[#8F9CAE] hover:text-white border border-white/[0.08] transition-colors cursor-pointer shadow-md"
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
-        )}
-
-        <div className="flex-1 h-full overflow-hidden">
+      <div className="flex flex-1 min-w-0 flex-col min-h-0">
+        <div className="flex-1 min-h-0">
           <AskTradeSensePanel
-            key={chatKey}
-            initialPrompt={activePrompt}
+            contextTokenId={selectedTokenId}
+            resetKey={resetKey}
+            onToggleSidebar={() => setIsSidebarOpen(value => !value)}
+            isSidebarOpen={isSidebarOpen}
+            onNewChat={() => setResetKey(key => key + 1)}
           />
         </div>
-      </main>
+      </div>
     </div>
   );
 };
-
 export default ChatPage;

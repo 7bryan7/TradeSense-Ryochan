@@ -30,7 +30,8 @@ export const marketService = {
     if (symbol.toUpperCase() === 'BTC' && mockCandlesByTimeframe[timeframe]) {
       return mockCandlesByTimeframe[timeframe];
     }
-    return generateCandles(baseToken.metrics.price, 40, 0.008);
+    const isBullish = baseToken.metrics.change24h >= 0;
+    return generateCandles(baseToken.metrics.price, 40, 0.008, isBullish);
   },
 };
 

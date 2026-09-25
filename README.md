@@ -8,7 +8,9 @@ TradeSense is a proposed AI crypto-market analyst that scans markets, interprets
 
 > User chooses market/token → RYO tools fetch data → AI agent analyzes evidence → simulated decision → dashboard explains why
 
-**Status — September 23, 2026: documentation only.** This workspace contains the project plan, [coding-agent instructions](AGENTS.md), and [action history](HISTORY.md). Application code, integrations, scripts, tests, and deployment do not exist yet. Everything below, including agent chat, is an implementation proposal unless explicitly marked otherwise.
+**Status — September 24, 2026: frontend prototype.** This workspace contains a React/Vite interface with fixture-backed dashboard services. The dashboard provides an asset watchlist, a plain-language summary, sample charts, decision explanations, simulation outcomes, and sample portfolio holdings. Demo scans do not update the portfolio balance. Live research, durable accounting, and backend integrations described below remain proposals unless independently verified; this interface is not evidence of a completed end-to-end agent.
+
+For the current frontend, use `npm ci`, `npm run dev`, `npm run typecheck`, and `npm run build` (or `npm run preview` for the built app). Other script names below are proposed contracts, not available commands. On the dashboard, select an asset, choose a demo scenario, and use **Run demo scan**. Bitcoin, Ethereum, and Solana have decision fixtures; assets without a matching fixture show an explicit unavailable state. Shortcuts: **1–5** select assets, **R** runs a demo scan, **C** opens chat, **?** shows shortcuts, and **Escape** closes panels. The dashboard displays demo data only; charts are illustrative rather than live history.
 
 The track descriptions and RYO tool names come from the user's brief. Official eligibility, deadlines, submission requirements, tool schemas, supported networks, provider access, and model availability have not been independently verified. This document makes no claim about those details. Verify them with official event and provider documentation before implementation or submission.
 

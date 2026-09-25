@@ -1,3 +1,4 @@
+import { PageIntro } from '../components/common/PageIntro';
 import React, { useState } from 'react';
 import { mockTokens } from '../data/tokens';
 import { ArrowUpRight, ArrowDownRight, Search, BarChart3, TrendingUp } from 'lucide-react';
@@ -13,31 +14,10 @@ export const MarketsPage: React.FC = () => {
   );
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto min-h-screen">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <BarChart3 className="w-6 h-6 text-[#4ce07a]" />
-            Market Intelligence &amp; Screening
-          </h1>
-          <p className="text-xs text-[#8F9CAE] font-mono mt-1">
-            Global market snapshots, liquidity depth, and multi-asset candidate screening
-          </p>
-        </div>
-
-        {/* Search Input */}
-        <div className="flex items-center gap-2.5 bg-[#1E222B] border border-white/[0.06] rounded-full px-4 py-2 text-xs font-mono shadow-sm">
-          <Search className="w-4 h-4 text-[#8F9CAE]" />
-          <input
-            type="text"
-            placeholder="Search token (e.g. BTC, ETH)..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="bg-transparent text-white placeholder-[#5E6A7D] focus:outline-none w-48 sm:w-64"
-          />
-        </div>
-      </div>
+    <div className="studio-page">
+      <PageIntro eyebrow="DISCOVER & COMPARE" title="The market, in perspective." description="Compare price, volume, and momentum across the sample market. Find an asset worth a closer look.">
+        <label className="studio-secondary"><Search size={15} /><input aria-label="Search markets" type="search" placeholder="Find an asset…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent min-w-0 w-40 text-white focus:outline-none" /></label>
+      </PageIntro>
 
       {/* Market Overview Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -51,7 +31,7 @@ export const MarketsPage: React.FC = () => {
         <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-4 sm:p-5 shadow-lg">
           <span className="text-xs font-mono text-[#8F9CAE] uppercase">24h Global Volume</span>
           <div className="text-2xl font-black font-mono text-white mt-1">$118.4B</div>
-          <span className="text-[11px] font-mono text-[#8F9CAE] mt-1 block">Tier-1 Spot Venues</span>
+          <span className="text-[11px] font-mono text-[#8F9CAE] mt-1 block">Illustrative market snapshot</span>
         </div>
         <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-4 sm:p-5 shadow-lg">
           <span className="text-xs font-mono text-[#8F9CAE] uppercase">BTC Dominance</span>
@@ -59,9 +39,9 @@ export const MarketsPage: React.FC = () => {
           <span className="text-[11px] font-mono text-[#8F9CAE] mt-1 block">Market Weight</span>
         </div>
         <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-4 sm:p-5 shadow-lg">
-          <span className="text-xs font-mono text-[#8F9CAE] uppercase">Active Scans Today</span>
-          <div className="text-2xl font-black font-mono text-[#4ce07a] mt-1">178 Runs</div>
-          <span className="text-[11px] font-mono text-[#8F9CAE] mt-1 block">Autonomous Cadence</span>
+          <span className="text-xs font-mono text-[#8F9CAE] uppercase">Assets to explore</span>
+          <div className="text-2xl font-black font-mono text-[#4ce07a] mt-1">{mockTokens.length}</div>
+          <span className="text-[11px] font-mono text-[#8F9CAE] mt-1 block">Sample market coverage</span>
         </div>
       </div>
 
@@ -125,7 +105,7 @@ export const MarketsPage: React.FC = () => {
                     </td>
                     <td className="py-4 px-4 text-center">
                       <Link
-                        to="/dashboard"
+                        to={`/dashboard?asset=${token.id}`}
                         className="px-3.5 py-1.5 rounded-xl bg-ryo-gradient text-[#050806] hover:opacity-90 font-bold text-xs transition-all inline-block shadow-ryo-sm"
                       >
                         Analyze
@@ -136,6 +116,7 @@ export const MarketsPage: React.FC = () => {
               })}
             </tbody>
           </table>
+          {filteredTokens.length === 0 && <p className="studio-empty m-4">No sample assets match your search. Try a name or symbol.</p>}
         </div>
       </div>
     </div>

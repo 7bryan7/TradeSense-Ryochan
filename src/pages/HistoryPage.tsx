@@ -1,36 +1,60 @@
 import React, { useState } from 'react';
+import { PageIntro } from '../components/common/PageIntro';
 import { useAgentRun } from '../hooks/useAgentRun';
 import { HistoryTable } from '../components/dashboard/HistoryTable';
 import { ReplayModal } from '../components/dashboard/ReplayModal';
 import { AgentRunRecord } from '../types/run';
-import { History, ShieldCheck, Database } from 'lucide-react';
 
 export const HistoryPage: React.FC = () => {
   const { runs } = useAgentRun();
   const [replayRun, setReplayRun] = useState<AgentRunRecord | null>(null);
 
+  const holdCount = runs.filter(run => run.decision.action === 'HOLD').length;
+  const blockedCount = runs.filter(run => !run.decision.policyOutcome.allowed).length;
+
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <History className="w-6 h-6 text-[#4ce07a]" />
-            Autonomous Run History & Replay Log
-          </h1>
-          <p className="text-xs text-[#8F9CAE] font-mono mt-1">
-            Persisted research runs with tool traces, evidence references & deterministic replay verification
-          </p>
+    <div className="studio-page">
+      <PageIntro
+        eyebrow="THE DECISION TRAIL"
+        title="Decision history"
+        description="Review sample analyses, compare their outcomes, and inspect the evidence behind each action."
+      >
+        <span className="studio-chip">Sample records</span>
+      </PageIntro>
+
+      <div className="studio-note">
+        Sample decision history · Offline replay verified. Inspecting these records does not place live orders.
+      </div>
+
+      {/* Summary Metrics - Replicating Paper Portfolio's Exact Color Design & Structure */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs font-mono text-[#8F9CAE] uppercase">Sample analyses</span>
+          <div className="text-2xl font-bold font-mono text-white mt-1">
+            {runs.length}
+          </div>
+          <span className="text-[11px] font-mono text-[#5E6A7D] mt-0.5 block">
+            Available in this demo
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <span className="px-3 py-1 rounded-full bg-[#1E222B] border border-[#4ce07a]/30 text-[#4ce07a] flex items-center gap-1.5 font-medium shadow-sm">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Idempotent Records
+        <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs font-mono text-[#8F9CAE] uppercase">Decisions to wait</span>
+          <div className="text-2xl font-bold font-mono text-white mt-1">
+            {holdCount}
+          </div>
+          <span className="text-[11px] font-mono text-[#4ce07a] flex items-center mt-0.5 font-medium">
+            HOLD is a completed decision
           </span>
-          <span className="px-3 py-1 rounded-full bg-[#1E222B] border border-white/[0.08] text-white flex items-center gap-1.5 shadow-sm">
-            <Database className="w-3.5 h-3.5 text-[#4ce07a]" />
-            Fixture Mode
+        </div>
+
+        <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs font-mono text-[#8F9CAE] uppercase">Policy blocks</span>
+          <div className="text-2xl font-bold font-mono text-white mt-1">
+            {blockedCount}
+          </div>
+          <span className="text-[11px] font-mono text-[#5E6A7D] mt-0.5 block">
+            Reasons are available in details
           </span>
         </div>
       </div>

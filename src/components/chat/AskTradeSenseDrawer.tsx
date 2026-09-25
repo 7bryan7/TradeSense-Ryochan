@@ -1,17 +1,19 @@
 import React, { useEffect } from 'react';
 import { AskTradeSensePanel } from './AskTradeSensePanel';
-import { X, Sparkles } from 'lucide-react';
 
 interface AskTradeSenseDrawerProps {
+
   isOpen: boolean;
   onClose: () => void;
   initialPrompt?: string;
+  contextTokenId?: string;
 }
 
 export const AskTradeSenseDrawer: React.FC<AskTradeSenseDrawerProps> = ({
   isOpen,
   onClose,
   initialPrompt,
+  contextTokenId,
 }) => {
   // ESC listener
   useEffect(() => {
@@ -28,29 +30,30 @@ export const AskTradeSenseDrawer: React.FC<AskTradeSenseDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden animate-fade-up">
-      {/* Backdrop */}
+      {/* Translucent Frosted Backdrop (shows dashboard underneath through blur) */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity duration-300"
         onClick={onClose}
       />
 
-      {/* Slide-over Drawer Panel */}
+      {/* Slide-over Translucent Glass Drawer Panel */}
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <div className="w-screen max-w-2xl bg-[#15171C] border-l border-white/[0.08] shadow-2xl flex flex-col relative">
-          {/* Close Action in top right */}
-          <button
-            type="button"
-            onClick={onClose}
-            title="Close Drawer (Esc)"
-            className="absolute top-4 right-4 z-50 p-2 rounded-xl bg-[#1E222B] text-[#8F9CAE] hover:text-white hover:bg-white/10 border border-white/[0.08] transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="w-screen max-w-2xl tradesense-glass-drawer flex flex-col relative overflow-hidden h-full">
 
-          {/* Embedded Panel */}
-          <div className="flex-1 overflow-hidden flex flex-col pt-1">
+          {/* Ambient Frosted Glass Optical Refractions */}
+          <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#4ce07a]/15 blur-[90px]" />
+          <div className="pointer-events-none absolute top-1/2 -left-24 w-80 h-80 rounded-full bg-[#38bdf8]/12 blur-[100px]" />
+          <div className="pointer-events-none absolute -bottom-24 right-12 w-80 h-80 rounded-full bg-[#4ce07a]/10 blur-[100px]" />
+          
+          {/* Subtle Specular Left Glass Edge Accent */}
+          <div className="pointer-events-none absolute top-0 left-0 bottom-0 w-[1px] bg-gradient-to-b from-white/30 via-white/10 to-transparent z-20" />
+
+          {/* Embedded Glass Panel */}
+          <div className="flex-1 overflow-hidden flex flex-col relative z-10">
+
             <AskTradeSensePanel
               initialPrompt={initialPrompt}
+              contextTokenId={contextTokenId}
               onCloseDrawer={onClose}
             />
           </div>

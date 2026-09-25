@@ -1,84 +1,42 @@
 import React, { useState } from 'react';
+import { RefreshCw, ArrowRight, FileText } from 'lucide-react';
 import { useMarket } from '../hooks/useMarket';
 import { useAgentRun } from '../hooks/useAgentRun';
-import { AIDecisionCard } from '../components/dashboard/AIDecisionCard';
-import { EvidencePanel } from '../components/dashboard/EvidencePanel';
+import { PageIntro } from '../components/common/PageIntro';
+import { AssetStatCards } from '../components/dashboard/AssetStatCards';
+import { TradeExecutionWidget } from '../components/dashboard/TradeExecutionWidget';
 import { SafetyRiskPanel } from '../components/dashboard/SafetyRiskPanel';
-import { TokenComparisonCard } from '../components/dashboard/TokenComparisonCard';
-import { AgentWorkflowVisualizer } from '../components/dashboard/AgentWorkflowVisualizer';
 import { AskTradeSenseDrawer } from '../components/chat/AskTradeSenseDrawer';
-import { BrainCircuit, RefreshCw, MessageSquareCode } from 'lucide-react';
 
 export const AnalysisPage: React.FC = () => {
-  const { tokens, currentToken, setSelectedTokenId } = useMarket('btc');
-  const { currentRun, isScanning, scanStep, scanStatus, executeAnalysis } = useAgentRun();
+  const { tokens, currentToken, selectedTokenId, setSelectedTokenId } = useMarket('btc');
+  const { runs, isScanning, executeAnalysis } = useAgentRun();
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
-  const [chatPrompt, setChatPrompt] = useState<string | undefined>(undefined);
-
+  const [chatPrompt, setChatPrompt] = useState<string>();
+  const [error, setError] = useState('');
+  const run = runs.find(item => item.tokenId === selectedTokenId && item.decision.tokenId === selectedTokenId);
+  const canScan = ['btc', 'eth', 'sol'].includes(selectedTokenId);
+  const scan = async () => {
+    setError('');
+    try { await executeAnalysis(selectedTokenId); } catch { setError('The demo scan could not finish. Try again.'); }
+  };
+  if (!currentToken) return <div className="studio-page" role="status">Loading sample analysis…</div>;
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto min-h-screen">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <BrainCircuit className="w-6 h-6 text-[#4ce07a]" />
-            Autonomous Analysis Workspace
-          </h1>
-          <p className="text-xs text-[#8F9CAE] font-mono mt-1">
-            Deep multi-modal research synthesis, evidence attribution, and hypothesis evaluation
-          </p>
+    <div className="studio-page">
+      <PageIntro eyebrow="FROM SIGNAL TO UNDERSTANDING" title="Behind the decision." description="Follow what changed, the evidence that supports the call, and the risks that could change it.">
+        <button type="button" disabled={isScanning || !canScan} onClick={() => void scan()} className="studio-primary"><RefreshCw size={15} className={isScanning ? 'animate-spin' : ''} />{isScanning ? 'Running demo…' : 'Run demo analysis'}</button>
+      </PageIntro>
+      <AssetStatCards tokens={tokens} selectedTokenId={selectedTokenId} onSelectToken={setSelectedTokenId} />
+      <p role="status" className="text-xs text-amber-200">{error || (isScanning ? 'Running demo analysis. The previous sample remains visible.' : 'Sample analysis · Evidence and decisions below are fixtures.')}</p>
+      {run ? <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+        <div className="space-y-5">
+          <section className="dashboard-glass-card p-6"><h2 className="text-base font-semibold">What changed for {currentToken.symbol}?</h2><p className="mt-2 text-xs text-slate-400">Sample as of {run.decision.asOf}</p><div className="mt-5 grid sm:grid-cols-2 gap-4">{run.decision.whatChanged.map(item => <div key={item.metric} className="rounded-xl border border-white/10 bg-white/[0.02] p-4"><p className="text-xs text-slate-400">{item.metric}</p><p className="mt-3 text-xl font-medium text-[#4ce07a]">{item.delta}</p><p className="mt-2 flex items-center gap-2 text-xs text-slate-400">{item.previous}<ArrowRight size={12} />{item.current}</p><p className="mt-3 text-[10px] text-slate-500">Sample reference: {item.evidenceRefId}</p></div>)}</div></section>
+          <section className="dashboard-glass-card p-6"><h2 className="flex items-center gap-2 text-base font-semibold"><FileText size={17} className="text-[#4ce07a]" />Read the evidence</h2><p className="mt-4 text-sm leading-7 text-slate-300">{run.decision.explanation}</p><div className="mt-6 grid sm:grid-cols-2 gap-6"><div><h3 className="text-xs font-semibold text-sky-200">Supports the decision</h3><ul className="mt-3 space-y-3 text-xs leading-6 text-slate-400">{run.decision.supportingEvidence.map(item => <li key={item}>{item}</li>)}</ul></div><div><h3 className="text-xs font-semibold text-amber-200">Reasons to be cautious</h3><ul className="mt-3 space-y-3 text-xs leading-6 text-slate-400">{run.decision.contraryEvidence.map(item => <li key={item}>{item}</li>)}</ul></div></div></section>
         </div>
-
-        <button
-          type="button"
-          onClick={() => executeAnalysis(currentToken.id)}
-          disabled={isScanning}
-          className="flex items-center gap-2 px-5 py-2.5 bg-ryo-gradient text-[#050806] hover:opacity-90 font-bold text-xs rounded-full shadow-ryo-sm transition-all duration-200 cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin' : ''}`} />
-          <span>{isScanning ? 'Synthesizing Pipeline...' : 'Run Autonomous Analysis'}</span>
-        </button>
-      </div>
-
-      {/* Workflow Visualizer */}
-      <AgentWorkflowVisualizer
-        isScanning={isScanning}
-        status={scanStatus}
-        currentStepName={scanStep}
-      />
-
-      {/* Main Analysis Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7">
-          <AIDecisionCard
-            decision={currentRun.decision}
-            isScanning={isScanning}
-            onInterrogateInChat={(prompt) => {
-              setChatPrompt(prompt);
-              setIsChatDrawerOpen(true);
-            }}
-          />
-        </div>
-        <div className="lg:col-span-5 space-y-6">
-          <SafetyRiskPanel safety={currentRun.safety} />
-          <TokenComparisonCard tokens={tokens} onSelectToken={setSelectedTokenId} />
-        </div>
-      </div>
-
-      {/* Comprehensive Evidence Inspector */}
-      <EvidencePanel items={currentRun.evidence} />
-
-      {/* Persistent Chat Drawer */}
-      <AskTradeSenseDrawer
-        isOpen={isChatDrawerOpen}
-        onClose={() => {
-          setIsChatDrawerOpen(false);
-          setChatPrompt(undefined);
-        }}
-        initialPrompt={chatPrompt}
-      />
+        <aside className="space-y-5"><TradeExecutionWidget token={currentToken} decision={run.decision} simulation={run.simulation} fillStatus={run.simulatedFillStatus} onInterrogateInChat={prompt => { setChatPrompt(prompt); setIsChatDrawerOpen(true); }} /><SafetyRiskPanel safety={run.safety} /></aside>
+      </div> : <div className="studio-empty">No matching decision fixture for {currentToken.name}. Choose Bitcoin, Ethereum, or Solana to explore an analysis.</div>}
+      <AskTradeSenseDrawer isOpen={isChatDrawerOpen} onClose={() => { setIsChatDrawerOpen(false); setChatPrompt(undefined); }} initialPrompt={chatPrompt} contextTokenId={['btc', 'eth', 'sol'].includes(selectedTokenId) ? selectedTokenId : 'btc'} />
     </div>
   );
 };
-
 export default AnalysisPage;

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" fill="none">
+  <defs>
+    <radialGradient id="halo"><stop stop-color="#4ce07a" stop-opacity=".35"/><stop offset="1" stop-color="#2e8a50" stop-opacity="0"/></radialGradient>
+    <linearGradient id="rim" x1="470" y1="60" x2="1090" y2="540" gradientUnits="userSpaceOnUse"><stop stop-color="#4ce07a" stop-opacity=".05"/><stop offset=".42" stop-color="#38f997" stop-opacity=".85"/><stop offset=".7" stop-color="#2ecc71" stop-opacity=".5"/><stop offset="1" stop-color="#1db954" stop-opacity="0"/></linearGradient>
+    <linearGradient id="sheet" x1="720" y1="200" x2="900" y2="510" gradientUnits="userSpaceOnUse"><stop stop-color="#4ce07a" stop-opacity=".12"/><stop offset="1" stop-color="#2e8a50" stop-opacity="0"/></linearGradient>
+  </defs>
+  <ellipse cx="850" cy="290" rx="360" ry="285" fill="url(#halo)"/>
+  <g transform="rotate(-27 850 290)">
+    <ellipse cx="850" cy="290" rx="275" ry="150" fill="url(#sheet)" stroke="url(#rim)" stroke-width="2"/>
+    <ellipse cx="850" cy="290" rx="225" ry="119" stroke="url(#rim)" stroke-width="1.5"/>
+    <ellipse cx="850" cy="290" rx="170" ry="88" fill="url(#sheet)" stroke="url(#rim)"/>
+    <ellipse cx="850" cy="290" rx="110" ry="56" stroke="url(#rim)"/>
+    <ellipse cx="850" cy="290" rx="330" ry="181" stroke="url(#rim)" stroke-opacity=".3" stroke-dasharray="2 10"/>
+  </g>
+  <path d="M400 530C550 215 820 65 1160 55M510 600C580 290 850 100 1200 120" stroke="url(#rim)" stroke-opacity=".4"/>
+  <g fill="#4ce07a"><circle cx="632" cy="358" r="4"/><circle cx="1012" cy="158" r="5"/><circle cx="963" cy="377" r="3"/></g>
+</svg>

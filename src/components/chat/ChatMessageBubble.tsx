@@ -47,10 +47,10 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     return (
       <div className="flex justify-end mb-6 group">
         <div className="max-w-[85%] sm:max-w-[70%] space-y-1">
-          <div className="bg-[#242934] border border-white/[0.08] text-white px-5 py-3.5 rounded-3xl rounded-tr-md shadow-sm">
+          <div className="tradesense-glass-bubble-user text-white px-5 py-3.5 rounded-3xl rounded-tr-md">
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
           </div>
-          <div className="text-right text-[10px] font-mono text-[#5E6A7D] px-2">
+          <div className="text-right text-[10px] font-mono text-[#8F9CAE] px-2">
             {message.timestamp}
           </div>
         </div>
@@ -66,8 +66,8 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
   return (
     <div className="flex items-start gap-3 sm:gap-4 mb-8 group">
-      {/* Gemini 4-Point Sparkle Avatar */}
-      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#4ce07a]/20 via-[#38bdf8]/20 to-[#818cf8]/20 border border-[#4ce07a]/30 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+      {/* 4-Point Sparkle Avatar with Glass Glow */}
+      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#4ce07a]/25 via-[#38F997]/20 to-[#2ecc71]/20 border border-[#4ce07a]/40 backdrop-blur-md flex items-center justify-center shrink-0 mt-0.5 shadow-[0_0_15px_rgba(76,224,122,0.25)]">
         <Sparkles className="w-4 h-4 text-[#4ce07a]" />
       </div>
 
@@ -90,14 +90,14 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
               <p className="whitespace-pre-wrap">{message.content}</p>
             </div>
 
-            {/* AI Outlook Callout (if available) */}
+            {/* AI Outlook Callout in Translucent Glass Card */}
             {message.aiInterpretation && (
-              <div className="my-2.5 p-3 sm:p-3.5 rounded-2xl bg-[#1E222B]/60 border border-white/[0.08] flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="my-2.5 p-3.5 sm:p-4 rounded-2xl tradesense-glass-card flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="space-y-0.5 max-w-[75%]">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-[#8F9CAE] font-bold">
                     Agent Thesis
                   </span>
-                  <p className="text-xs text-white/90 leading-snug">
+                  <p className="text-xs text-white/95 leading-snug">
                     {message.aiInterpretation.thesis}
                   </p>
                 </div>
@@ -106,12 +106,12 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     {message.aiInterpretation.confidence}% CONF
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold flex items-center gap-1 border ${
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold flex items-center gap-1 border ${
                       message.aiInterpretation.outlook === 'BULLISH'
-                        ? 'bg-[#4ce07a]/15 text-[#4ce07a] border-[#4ce07a]/30'
+                        ? 'bg-[#4ce07a]/15 text-[#4ce07a] border-[#4ce07a]/40 shadow-[0_0_12px_rgba(76,224,122,0.2)]'
                         : message.aiInterpretation.outlook === 'BEARISH'
-                        ? 'bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/30'
-                        : 'bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/30'
+                        ? 'bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/40 shadow-[0_0_12px_rgba(239,68,68,0.2)]'
+                        : 'bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/40 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
                     }`}
                   >
                     {message.aiInterpretation.outlook === 'BULLISH' && <TrendingUp className="w-3 h-3" />}
@@ -129,7 +129,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowSources(!showSources)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-[11px] font-mono text-[#8F9CAE] hover:text-white transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full tradesense-glass-pill text-[11px] font-mono text-[#8F9CAE] hover:text-white transition-all cursor-pointer"
                 >
                   <Database className="w-3 h-3 text-[#4ce07a]" />
                   <span>
@@ -143,11 +143,11 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 </button>
 
                 {showSources && (
-                  <div className="mt-2.5 p-3 rounded-2xl bg-[#1E222B]/80 border border-white/[0.08] space-y-2 text-xs font-mono animate-fade-up">
+                  <div className="mt-2.5 p-3.5 rounded-2xl bg-black/35 backdrop-blur-xl border border-white/[0.10] space-y-2 text-xs font-mono animate-fade-up shadow-inner">
                     {message.retrievedFacts?.map((fact, idx) => (
                       <div
                         key={idx}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 rounded-xl bg-[#15171C] border border-white/[0.04]"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2.5 rounded-xl bg-white/[0.03] backdrop-blur-md border border-white/[0.06]"
                       >
                         <span className="text-white font-medium">{fact.value}</span>
                         <span className="text-[10px] text-[#8F9CAE] shrink-0">
@@ -160,7 +160,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                         {message.toolInvocations.map((t, idx) => (
                           <span
                             key={idx}
-                            className="px-2 py-0.5 rounded-md bg-[#15171C] text-[10px] text-[#4ce07a] border border-white/[0.06] flex items-center gap-1"
+                            className="px-2 py-0.5 rounded-md bg-white/[0.04] text-[10px] text-[#4ce07a] border border-white/[0.08] backdrop-blur-sm flex items-center gap-1"
                           >
                             <Cpu className="w-2.5 h-2.5" />
                             <span>RYO {t.toolName} ({t.durationMs}ms)</span>
@@ -175,7 +175,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
             {/* Missing Disclosures / Safety Checks (if any) */}
             {message.missingDisclosures && message.missingDisclosures.length > 0 && (
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono text-amber-200 space-y-1">
+              <div className="p-3.5 rounded-2xl bg-amber-500/[0.08] backdrop-blur-xl border border-amber-500/25 text-xs font-mono text-amber-200 space-y-1 shadow-sm">
                 <div className="flex items-center gap-1.5 font-bold text-amber-300 text-[11px]">
                   <ShieldAlert className="w-3.5 h-3.5" />
                   <span>Uncertainty &amp; Missing Checks</span>
@@ -188,14 +188,14 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
               </div>
             )}
 
-            {/* Gemini Action Toolbar */}
+            {/* Action Toolbar */}
             <div className="flex items-center gap-1 pt-1 text-[#8F9CAE]">
               {/* Copy */}
               <button
                 type="button"
                 onClick={handleCopy}
                 title={copied ? 'Copied!' : 'Copy response'}
-                className="p-1.5 rounded-lg hover:bg-white/[0.06] hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs"
+                className="p-1.5 rounded-lg hover:bg-white/[0.08] hover:text-white transition-colors cursor-pointer flex items-center gap-1 text-xs"
               >
                 {copied ? (
                   <>
@@ -212,7 +212,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 type="button"
                 onClick={() => setLiked(liked === true ? null : true)}
                 title="Good response"
-                className={`p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors cursor-pointer ${
+                className={`p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors cursor-pointer ${
                   liked === true ? 'text-[#4ce07a]' : 'hover:text-white'
                 }`}
               >
@@ -224,7 +224,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 type="button"
                 onClick={() => setLiked(liked === false ? null : false)}
                 title="Bad response"
-                className={`p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors cursor-pointer ${
+                className={`p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors cursor-pointer ${
                   liked === false ? 'text-rose-400' : 'hover:text-white'
                 }`}
               >
@@ -237,7 +237,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                   type="button"
                   onClick={onRetryClick}
                   title="Regenerate"
-                  className="p-1.5 rounded-lg hover:bg-white/[0.06] hover:text-white transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg hover:bg-white/[0.08] hover:text-white transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
@@ -248,7 +248,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
               </span>
             </div>
 
-            {/* Suggested Follow-up Pills */}
+            {/* Suggested Follow-up Pills in Glass styling */}
             {message.suggestedFollowUps && message.suggestedFollowUps.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-1.5">
                 {message.suggestedFollowUps.map((prompt, idx) => (
@@ -256,10 +256,10 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     key={idx}
                     type="button"
                     onClick={() => onFollowUpClick?.(prompt)}
-                    className="px-3 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.08] hover:border-[#4ce07a]/40 border border-white/[0.08] text-xs text-[#8F9CAE] hover:text-white transition-all text-left cursor-pointer flex items-center gap-1.5 group/btn"
+                    className="px-3 py-1.5 rounded-full tradesense-glass-pill hover:border-[#4ce07a]/50 text-xs text-[#8F9CAE] hover:text-white transition-all text-left cursor-pointer flex items-center gap-1.5 group/btn shadow-xs"
                   >
                     <span>{prompt}</span>
-                    <ArrowUpRight className="w-3 h-3 text-[#5E6A7D] group-hover/btn:text-[#4ce07a] shrink-0" />
+                    <ArrowUpRight className="w-3 h-3 text-[#5E6A7D] group-hover/btn:text-[#4ce07a] shrink-0 transition-colors" />
                   </button>
                 ))}
               </div>
@@ -272,3 +272,6 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 };
 
 export default ChatMessageBubble;
+
+
+

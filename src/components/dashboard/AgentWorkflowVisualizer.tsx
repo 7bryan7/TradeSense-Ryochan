@@ -9,6 +9,7 @@ import {
   Layout,
   CheckCircle2,
   Sparkles,
+  ChevronRight,
 } from 'lucide-react';
 
 interface AgentWorkflowVisualizerProps {
@@ -23,12 +24,12 @@ export const AgentWorkflowVisualizer: React.FC<AgentWorkflowVisualizerProps> = (
   currentStepName,
 }) => {
   const steps = [
-    { id: 'ingest', label: '01 Ingest', sub: 'RYO Evidence', icon: Database, stage: 'FETCHING' },
-    { id: 'reason', label: '02 Reason', sub: 'LLM Synthesis', icon: Brain, stage: 'ANALYZING' },
-    { id: 'predict', label: '03 Predict', sub: 'Bull/Bear Thesis', icon: TrendingUp, stage: 'ANALYZING' },
-    { id: 'policy', label: '04 Gate', sub: 'Safety Policy', icon: ShieldCheck, stage: 'APPLYING' },
-    { id: 'simulate', label: '05 Simulate', sub: '10 bps Engine', icon: Zap, stage: 'APPLYING' },
-    { id: 'visualize', label: '06 Visualize', sub: 'Telemetry', icon: Layout, stage: 'COMPLETED' },
+    { id: 'ingest', label: '01 Ingest', icon: Database, stage: 'FETCHING' },
+    { id: 'reason', label: '02 Synthesize', icon: Brain, stage: 'ANALYZING' },
+    { id: 'predict', label: '03 Hypothesis', icon: TrendingUp, stage: 'ANALYZING' },
+    { id: 'policy', label: '04 Policy Gate', icon: ShieldCheck, stage: 'APPLYING' },
+    { id: 'simulate', label: '05 Paper Engine', icon: Zap, stage: 'APPLYING' },
+    { id: 'visualize', label: '06 Audit Trail', icon: Layout, stage: 'COMPLETED' },
   ];
 
   const getStepState = (stepIndex: number, stepStage: string) => {
@@ -42,20 +43,28 @@ export const AgentWorkflowVisualizer: React.FC<AgentWorkflowVisualizerProps> = (
   };
 
   return (
-    <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
-      <div className="flex items-center justify-between mb-3 text-xs font-mono">
-        <span className="text-[#8F9CAE] uppercase flex items-center gap-2 font-bold tracking-wider">
-          <span className={`w-2 h-2 rounded-full ${isScanning ? 'bg-[#4ce07a] animate-ping' : 'bg-[#4ce07a]'}`} />
-          <span>AUTONOMOUS AGENT PIPELINE</span>
+    <div className="tradesense-glass-card rounded-xl px-4 py-2.5 border border-white/[0.12] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+
+      {/* Left: Autonomous status badge */}
+      <div className="flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full ${isScanning ? 'bg-[#4ce07a] animate-ping' : 'bg-[#4ce07a]'}`} />
+        <span className="text-[11px] font-bold text-white uppercase tracking-wider">
+          Reasoning Pipeline:
         </span>
-        <span className="text-[#4ce07a] text-[11px] font-mono flex items-center gap-1.5 font-medium">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>{isScanning ? currentStepName || 'Executing reasoning pipeline...' : 'System Verified • Autonomous Ready'}</span>
+        <span className="text-[11px] text-[#4ce07a] font-medium flex items-center gap-1">
+          {isScanning ? (
+            <>
+              <Sparkles className="w-3 h-3 animate-spin" />
+              <span>{currentStepName || 'Executing reasoning pipeline...'}</span>
+            </>
+          ) : (
+            <span>Deterministic Proofs Active</span>
+          )}
         </span>
       </div>
 
-      {/* Pipeline Nodes */}
-      <div className="flex items-center justify-between overflow-x-auto py-2 gap-2 scrollbar-none">
+      {/* Right: Inline horizontal steps ribbon */}
+      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-0.5">
         {steps.map((step, idx) => {
           const Icon = step.icon;
           const state = getStepState(idx, step.stage);
@@ -63,50 +72,29 @@ export const AgentWorkflowVisualizer: React.FC<AgentWorkflowVisualizerProps> = (
 
           return (
             <React.Fragment key={step.id}>
-              {/* Step Node */}
-              <div className="flex flex-col items-center shrink-0 min-w-[90px]">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                    state === 'active'
-                      ? 'bg-ryo-gradient text-[#050806] shadow-ryo-sm scale-105 font-bold'
-                      : state === 'completed'
-                      ? 'bg-[#15171C] border border-white/[0.08] text-[#4ce07a]'
-                      : 'bg-[#15171C] border border-white/[0.04] text-[#8F9CAE]/40'
-                  }`}
-                >
-                  {state === 'active' ? (
-                    <Icon className="w-4 h-4 animate-spin text-[#050806]" />
-                  ) : state === 'completed' && !isScanning ? (
-                    <CheckCircle2 className="w-4 h-4 text-[#4ce07a]" />
-                  ) : (
-                    <Icon className="w-4 h-4" />
-                  )}
-                </div>
-                <span
-                  className={`text-[11px] font-mono mt-1.5 font-bold ${
-                    state === 'active'
-                      ? 'text-[#4ce07a]'
-                      : state === 'completed'
-                      ? 'text-white'
-                      : 'text-[#8F9CAE]/50'
-                  }`}
-                >
+              <div
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all ${
+                  state === 'active'
+                    ? 'bg-[#4ce07a]/20 text-[#4ce07a] border border-[#4ce07a]/40 shadow-ryo-sm'
+                    : state === 'completed'
+                    ? 'bg-white/[0.03] text-white/90 border border-white/[0.06]'
+                    : 'text-[#8F9CAE]/40 border border-transparent'
+                }`}
+              >
+                {state === 'active' ? (
+                  <Icon className="w-3 h-3 animate-spin text-[#4ce07a]" />
+                ) : state === 'completed' && !isScanning ? (
+                  <CheckCircle2 className="w-3 h-3 text-[#4ce07a]" />
+                ) : (
+                  <Icon className="w-3 h-3" />
+                )}
+                <span className="text-[10px] font-bold whitespace-nowrap">
                   {step.label}
-                </span>
-                <span className="text-[10px] font-mono text-[#8F9CAE] whitespace-nowrap">
-                  {step.sub}
                 </span>
               </div>
 
-              {/* Connecting Line */}
               {!isLast && (
-                <div className="flex-1 h-[2px] min-w-[20px] bg-white/[0.06] relative mx-1">
-                  <div
-                    className={`h-full transition-all duration-500 ${
-                      state === 'completed' ? 'bg-[#4ce07a]/60' : 'bg-transparent'
-                    }`}
-                  />
-                </div>
+                <ChevronRight className="w-3 h-3 text-white/20 shrink-0" />
               )}
             </React.Fragment>
           );

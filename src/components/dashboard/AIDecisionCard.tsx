@@ -3,15 +3,16 @@ import { DecisionReport } from '../../types/decision';
 import {
   BrainCircuit,
   TrendingUp,
-  CheckCircle2,
-  AlertTriangle,
-  Target,
+  TrendingDown,
+  Activity,
   ShieldCheck,
   ShieldAlert,
   ArrowRight,
   Sparkles,
   MessageSquareCode,
+  Zap,
 } from 'lucide-react';
+
 
 interface AIDecisionCardProps {
   decision: DecisionReport;
@@ -24,180 +25,186 @@ export const AIDecisionCard: React.FC<AIDecisionCardProps> = ({
   isScanning = false,
   onInterrogateInChat,
 }) => {
-  const isBuy = decision.action === 'BUY';
-  const isSell = decision.action === 'SELL';
-  const isHold = decision.action === 'HOLD';
+  if (!decision) return null;
+
+  const action = decision.action || 'HOLD';
+  const isBuy = action === 'BUY';
+  const isSell = action === 'SELL';
 
   const actionConfig = {
     BUY: {
-      border: 'border-[#38F997]/40 shadow-glow-green-sm',
-      badgeBg: 'bg-[#38F997]/15 text-[#38F997] border border-[#38F997]/30',
-      iconColor: 'text-[#38F997]',
+      badge: 'bg-[#4ce07a]/20 text-[#4ce07a] border-[#4ce07a]/50 shadow-ryo-sm',
+      icon: TrendingUp,
+      accent: '#4ce07a',
+      glow: 'shadow-[0_0_24px_-4px_rgba(76,224,122,0.25)]',
     },
     SELL: {
-      border: 'border-[#F87171]/40 shadow-glow-red-sm',
-      badgeBg: 'bg-[#F87171]/15 text-[#F87171] border border-[#F87171]/30',
-      iconColor: 'text-[#F87171]',
+      badge: 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-[0_0_16px_-2px_rgba(244,63,94,0.3)]',
+      icon: TrendingDown,
+      accent: '#f43f5e',
+      glow: 'shadow-[0_0_24px_-4px_rgba(244,63,94,0.25)]',
     },
     HOLD: {
-      border: 'border-[#FBBF24]/40',
-      badgeBg: 'bg-[#FBBF24]/15 text-[#FBBF24] border border-[#FBBF24]/30',
-      iconColor: 'text-[#FBBF24]',
+      badge: 'bg-amber-500/20 text-amber-400 border-amber-500/50 shadow-[0_0_16px_-2px_rgba(245,158,11,0.3)]',
+      icon: Activity,
+      accent: '#f59e0b',
+      glow: 'shadow-[0_0_24px_-4px_rgba(245,158,11,0.25)]',
     },
-  }[decision.action];
+  }[action] || {
+    badge: 'bg-white/10 text-white border-white/20',
+    icon: Activity,
+    accent: '#ffffff',
+    glow: '',
+  };
+
+  const ActionIcon = actionConfig.icon;
 
   return (
-    <div
-      className={`bg-gradient-to-br from-[#161926] to-[#1C2030] backdrop-blur-xl border rounded-2xl p-5 shadow-xl transition-all duration-300 ${actionConfig.border}`}
-    >
-      {/* Top Header: Decision Badge + Confidence */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[rgba(251,237,224,0.08)]">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-[#00D2FF]/10 border border-[#00D2FF]/25 text-[#00D2FF] shadow-xs">
-            <BrainCircuit className="w-5 h-5" />
+    <div className={`tradesense-glass-card rounded-2xl p-5 space-y-4 border border-white/[0.12] ${actionConfig.glow}`}>
+      {/* Top Header: Model Tag & Safety Policy Stamp */}
+      <div className="flex items-center justify-between pb-3.5 border-b border-white/[0.08]">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-[#4ce07a]/15 text-[#4ce07a] border border-[#4ce07a]/30 shadow-ryo-sm">
+            <BrainCircuit className="w-4 h-4" />
           </div>
           <div>
-            <div className="text-[11px] font-mono text-[rgba(251,237,224,0.5)] uppercase tracking-wider flex items-center gap-1.5 font-semibold">
-              <span>AI Autonomous Decision</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00D2FF] animate-pulse" />
-            </div>
-            <div className="flex items-center gap-2.5 mt-1">
-              <span
-                className={`px-3 py-1 rounded-xl text-sm font-black font-mono tracking-wider flex items-center gap-1.5 shadow-xs ${actionConfig.badgeBg}`}
-              >
-                {isBuy && <TrendingUp className="w-4 h-4" />}
-                {decision.action}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                Autonomous AI Verdict
               </span>
-              <span className="text-xs font-mono font-bold text-[#FBEDE0] bg-[#10131F] px-2.5 py-1 rounded-xl border border-[rgba(251,237,224,0.12)]">
-                {decision.confidenceScore}% confidence ({decision.confidenceLevel})
-              </span>
+              {isScanning && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-[#4ce07a]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4ce07a] animate-ping" />
+                  Synthesizing...
+                </span>
+              )}
             </div>
+            <span className="text-[10px] text-[#8F9CAE] font-mono">
+              TradeSense AI Reasoning Engine
+            </span>
           </div>
         </div>
 
-        {/* Policy Outcome Stamp */}
-        <div className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-xl bg-[#10131F] border border-[rgba(251,237,224,0.12)] shadow-xs">
+        {/* Policy Invariant Status */}
+        <div className="flex items-center gap-1.5 font-mono text-xs">
           {decision.policyOutcome.allowed ? (
-            <ShieldCheck className="w-4 h-4 text-[#38F997]" />
+            <span className="px-2.5 py-1 rounded-lg bg-[#4ce07a]/15 border border-[#4ce07a]/35 text-[#4ce07a] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(76,224,122,0.15)]">
+              <ShieldCheck className="w-3.5 h-3.5" /> Policy Invariants Passed
+            </span>
           ) : (
-            <ShieldAlert className="w-4 h-4 text-[#F87171]" />
+            <span className="px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/35 text-rose-400 font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(244,63,94,0.15)]">
+              <ShieldAlert className="w-3.5 h-3.5" /> Policy Invariants Blocked
+            </span>
           )}
-          <span
-            className={`font-semibold ${
-              decision.policyOutcome.allowed ? 'text-[#38F997]' : 'text-[#F87171]'
-            }`}
-          >
-            {decision.policyOutcome.allowed ? 'Safety Policy: Passed' : 'Safety Policy: Blocked'}
-          </span>
         </div>
       </div>
 
-      {/* Rationale & Evidence-Linked AI Explanation */}
-      <div className="my-4 p-4 bg-[#10131F]/90 rounded-xl border border-[rgba(251,237,224,0.10)] space-y-2">
-        <div className="text-[11px] font-mono uppercase text-[#00D2FF] font-bold flex items-center gap-1.5 tracking-wider">
-          <Sparkles className="w-3.5 h-3.5 text-[#00D2FF]" />
-          Evidence-Linked Synthesis
+      {/* Hero Verdict HUD Strip */}
+      <div className="tradesense-glass-pill rounded-xl p-3.5 border border-white/[0.10] flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div
+            className={`px-3.5 py-1.5 rounded-xl text-sm font-black font-mono tracking-wider flex items-center gap-2 border ${actionConfig.badge}`}
+          >
+            <ActionIcon className="w-4 h-4" />
+            <span>{decision.action}</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-white">
+                {decision.confidenceScore}% Conviction
+              </span>
+              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/[0.08] text-[#8F9CAE] border border-white/[0.10]">
+                {decision.confidenceLevel}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-[#8F9CAE] block">
+              Confidence Score
+            </span>
+          </div>
         </div>
-        <p className="text-sm font-medium text-[#FBEDE0] leading-relaxed">
+
+        {/* Target Boundaries HUD */}
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="tradesense-glass-pill px-3 py-1.5 rounded-lg border border-white/[0.08] text-right">
+            <span className="text-[9px] text-[#8F9CAE] block uppercase">Take-Profit</span>
+            <span className="text-[#4ce07a] font-bold">
+              ${decision.outlook.targetPrice ? decision.outlook.targetPrice.toLocaleString() : '116,200'}
+            </span>
+          </div>
+          <div className="tradesense-glass-pill px-3 py-1.5 rounded-lg border border-white/[0.08] text-right">
+            <span className="text-[9px] text-[#8F9CAE] block uppercase">Invalidation</span>
+            <span className="text-rose-400 font-bold">
+              ${decision.outlook.invalidationPrice ? decision.outlook.invalidationPrice.toLocaleString() : '108,500'}
+            </span>
+          </div>
+          <div className="tradesense-glass-pill px-3 py-1.5 rounded-lg border border-white/[0.08] text-right hidden sm:block">
+            <span className="text-[9px] text-[#8F9CAE] block uppercase">Horizon</span>
+            <span className="text-white font-bold">{decision.outlook.timeframe}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Core AI Thesis (Concise, 1 punchy explanation — no duplicate quotes) */}
+      <div className="p-3.5 tradesense-glass-pill rounded-xl border border-white/[0.08] space-y-1">
+        <div className="text-[10px] font-mono uppercase tracking-wider text-[#4ce07a] font-bold flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-[#4ce07a]" />
+          <span>Core AI Thesis</span>
+        </div>
+        <p className="text-xs text-white/95 font-medium leading-relaxed">
           {decision.explanation}
         </p>
-        <p className="text-xs text-[rgba(251,237,224,0.6)] italic leading-relaxed">
-          "{decision.rationale}"
-        </p>
       </div>
 
-      {/* What Changed Deltas (30-second comprehension) */}
-      <div className="mb-4">
-        <div className="text-[11px] font-mono uppercase text-[rgba(251,237,224,0.5)] font-bold mb-2 flex items-center gap-1 tracking-wider">
-          <span>What changed since last scan?</span>
+      {/* What Changed (Fast 4-metric quantitative delta scan) */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-mono text-[#8F9CAE]">
+          <span className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <Zap className="w-3 h-3 text-[#4ce07a]" /> Key Metric Shifts (Since Last Scan)
+          </span>
+          <span className="text-[10px] text-[#8F9CAE]/70">Deterministic Telemetry</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {decision.whatChanged.map((delta, idx) => (
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {decision.whatChanged.slice(0, 4).map((delta, i) => (
             <div
-              key={idx}
-              className="bg-[#10131F]/80 border border-[rgba(251,237,224,0.08)] rounded-xl p-2.5 flex items-center justify-between text-xs"
+              key={i}
+              className="p-2.5 rounded-xl tradesense-glass-pill border border-white/[0.08] flex flex-col justify-between text-xs font-mono"
             >
-              <div>
-                <span className="text-[rgba(251,237,224,0.5)] block text-[10px] font-mono">
-                  {delta.metric}
+              <span className="text-[10px] text-[#8F9CAE] truncate block">
+                {delta.metric}
+              </span>
+              <div className="mt-1 flex items-baseline justify-between gap-1">
+                <span className="text-xs font-bold text-white truncate">
+                  {delta.current}
                 </span>
-                <span className="font-mono text-[#FBEDE0] font-medium text-xs">
-                  {delta.previous} <ArrowRight className="inline w-3 h-3 text-[rgba(251,237,224,0.3)] mx-0.5" /> {delta.current}
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    delta.sentiment === 'positive'
+                      ? 'bg-[#4ce07a]/15 text-[#4ce07a]'
+                      : delta.sentiment === 'negative'
+                      ? 'bg-rose-500/15 text-rose-400'
+                      : 'bg-white/5 text-[#8F9CAE]'
+                  }`}
+                >
+                  {delta.delta}
                 </span>
               </div>
-              <span
-                className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg ${
-                  delta.sentiment === 'positive'
-                    ? 'bg-[#38F997]/15 text-[#38F997] border border-[#38F997]/25'
-                    : delta.sentiment === 'negative'
-                    ? 'bg-[#F87171]/15 text-[#F87171] border border-[#F87171]/25'
-                    : 'bg-white/5 text-[rgba(251,237,224,0.65)]'
-                }`}
-              >
-                {delta.delta}
-              </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Supporting vs Contrary Evidence Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        {/* Supporting Evidence */}
-        <div className="bg-[#38F997]/5 border border-[#38F997]/20 rounded-xl p-3.5">
-          <div className="text-[11px] font-mono text-[#38F997] uppercase font-bold flex items-center gap-1.5 mb-2.5 tracking-wider">
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#38F997]" />
-            Supporting Evidence
-          </div>
-          <ul className="space-y-1.5">
-            {decision.supportingEvidence.map((ev, idx) => (
-              <li key={idx} className="text-xs text-[rgba(251,237,224,0.85)] flex items-start gap-2 leading-relaxed">
-                <span className="text-[#38F997] font-bold shrink-0 mt-0.5">✓</span>
-                <span>{ev}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Interrogate CTA */}
 
-        {/* Contrary Evidence */}
-        <div className="bg-[#FBBF24]/5 border border-[#FBBF24]/20 rounded-xl p-3.5">
-          <div className="text-[11px] font-mono text-[#FBBF24] uppercase font-bold flex items-center gap-1.5 mb-2.5 tracking-wider">
-            <AlertTriangle className="w-3.5 h-3.5 text-[#FBBF24]" />
-            Contrary Evidence & Risks
-          </div>
-          <ul className="space-y-1.5">
-            {decision.contraryEvidence.map((ev, idx) => (
-              <li key={idx} className="text-xs text-[rgba(251,237,224,0.85)] flex items-start gap-2 leading-relaxed">
-                <span className="text-[#FBBF24] font-bold shrink-0 mt-0.5">⚠</span>
-                <span>{ev}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Outlook & Invalidation Condition */}
-      <div className="bg-[#10131F] border border-[rgba(251,237,224,0.10)] rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-[#00D2FF]" />
-          <span className="text-[rgba(251,237,224,0.5)]">Target Horizon:</span>
-          <span className="text-[#FBEDE0] font-bold">{decision.outlook.timeframe}</span>
-        </div>
-        <div className="text-[rgba(251,237,224,0.7)]">
-          Invalidation Level: <strong className="text-[#F87171]">${decision.outlook.invalidationPrice.toLocaleString()}</strong>
-        </div>
-      </div>
-
-      {/* Interrogate in Chat CTA */}
       {onInterrogateInChat && (
         <button
           type="button"
-          onClick={() => onInterrogateInChat(`Why did the agent choose ${decision.action} in this analysis?`)}
-          className="mt-3 w-full py-2.5 px-3 rounded-xl bg-[#00D2FF]/10 hover:bg-[#00D2FF]/20 border border-[#00D2FF]/30 text-[#00D2FF] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-glow-cyan-xs group"
+          onClick={() => onInterrogateInChat(`Why did the model select ${decision.action} with ${decision.confidenceScore}% confidence?`)}
+          className="w-full py-2.5 px-3 rounded-xl tradesense-glass-pill hover:bg-[#4ce07a]/15 hover:border-[#4ce07a]/40 text-white hover:text-[#4ce07a] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer group shadow-sm"
         >
-          <MessageSquareCode className="w-4 h-4 group-hover:scale-110 transition-transform" />
-          <span>Interrogate Thesis in Chat ("Why {decision.action}?")</span>
-          <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+          <MessageSquareCode className="w-4 h-4 text-[#4ce07a] group-hover:scale-110 transition-transform" />
+          <span>Interrogate AI Thesis in Gemini Chat</span>
+          <ArrowRight className="w-3.5 h-3.5 text-[#8F9CAE] group-hover:text-[#4ce07a] group-hover:translate-x-0.5 transition-all" />
         </button>
       )}
     </div>
@@ -205,3 +212,4 @@ export const AIDecisionCard: React.FC<AIDecisionCardProps> = ({
 };
 
 export default AIDecisionCard;
+

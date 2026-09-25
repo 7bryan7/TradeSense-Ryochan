@@ -1,0 +1,26 @@
+.studio-app .dashboard-page { background: transparent; }
+.studio-app .dashboard-glass-header { background: rgba(12, 14, 23, .80); border-color: rgba(255, 255, 255, .08); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.studio-app .dashboard-content { max-width: 1500px; padding-top: 24px; }
+.studio-app .dashboard-hero { position: relative; min-height: 200px; padding: 30px; border: 1px solid rgba(76, 224, 122, 0.25); border-radius: 22px; overflow: hidden; background: linear-gradient(100deg, #131c26, #14241d 55%, #0e1620); }
+.studio-app .dashboard-hero::before { content: ''; position: absolute; inset: 0; background: url('/assets/orbit-field.svg') right center / 670px auto no-repeat; opacity: .75; pointer-events: none; }
+.studio-app .dashboard-hero > * { position: relative; z-index: 1; }
+.studio-app .dashboard-hero h1 { font-size: clamp(26px, 3vw, 39px); letter-spacing: -.045em; }
+.studio-app .dashboard-hero p { max-width: 400px; }
+.studio-app .dashboard-title-dot { color: #4ce07a; }
+.studio-app .dashboard-watchlist button { border-radius: 16px; padding: 16px; text-align: left; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); background: linear-gradient(145deg, rgba(22, 28, 42, 0.85), rgba(13, 17, 27, 0.90)); transition: border-color 180ms, transform 220ms, background-color 180ms; }
+.studio-app .dashboard-watchlist button[aria-pressed='true'] { border-color: rgba(76, 224, 122, 0.6); background: linear-gradient(130deg, rgba(76, 224, 122, 0.16), rgba(18, 28, 22, 0.90)); box-shadow: inset 0 1px rgba(76, 224, 122, 0.25), 0 8px 24px -6px rgba(76, 224, 122, 0.15); }
+.studio-app .dashboard-watchlist button > span:nth-child(2) { font-size: 20px; font-weight: 500; }
+.studio-app .dashboard-brief { background: linear-gradient(110deg, rgba(18, 32, 24, .88), rgba(15, 22, 34, .92)); border: 1px solid rgba(255, 255, 255, .08); }
+.studio-app .dashboard-brief-grid > div { padding: 0 18px 0 0; background: transparent; }
+.studio-app .dashboard-brief-grid > div + div { padding-left: 18px; border-left: 1px solid var(--studio-line); }
+.studio-app .dashboard-brief-grid > div > p:nth-child(2) { font-size: 16px; line-height: 1.5; }
+.studio-app .brief-label { color: #4ce07a; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
+.studio-app .dashboard-chart-controls > div { background: #ffffff04; backdrop-filter: none; }
+.studio-app .dashboard-page svg [stroke='#4ce07a'] { stroke: #4ce07a; }
+.studio-app .dashboard-page svg [fill='#4ce07a'] { fill: #4ce07a; }
+.studio-app .dashboard-page svg [fill='rgba(76, 224, 122, 0.45)'] { fill: rgba(76, 224, 122, 0.45); }
+.studio-app .dashboard-page button.bg-\[\#4ce07a\] { background: linear-gradient(135deg, #a6e5bd, #70cf9a); border: 1px solid #b9f3d37a; box-shadow: inset 0 1px #ffffff50; }
+.studio-app .dashboard-glass-card::before, .studio-app .dashboard-glass-surface::before { content: none; }
+@media (hover: hover) { .studio-app .dashboard-watchlist button:hover { transform: translateY(-2px); border-color: rgba(76, 224, 122, 0.4); background: linear-gradient(145deg, rgba(26, 34, 52, 0.92), rgba(16, 22, 34, 0.94)); } }
+@media (max-width: 767px) { .studio-app .dashboard-hero { padding: 23px; } .studio-app .dashboard-hero::before { opacity: .35; } .studio-app .dashboard-brief-grid > div + div { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--studio-line); } }
+

@@ -17,9 +17,9 @@ export const CandleChart: React.FC<CandleChartProps> = ({
   timeframe,
   onTimeframeChange,
   pairName = 'BTC / USD',
-  simulatedFillPrice = 112482.31,
-  takeProfitPrice = 116200.00,
-  stopLossPrice = 108500.00,
+  simulatedFillPrice,
+  takeProfitPrice,
+  stopLossPrice,
 }) => {
   const [hoveredCandle, setHoveredCandle] = useState<Candle | null>(null);
   const [showIndicators, setShowIndicators] = useState<boolean>(true);
@@ -69,7 +69,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
     <div className="dashboard-glass-card rounded-2xl p-4 sm:p-5 flex flex-col relative overflow-hidden">
       {/* Top Chart Header & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
-        <div className="flex items-center gap-3">
+        <div className="dashboard-chart-controls flex flex-wrap items-center gap-3">
           {/* Pair Selector Pill */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#15171C]/75 backdrop-blur-md border border-white/[0.06] text-xs font-bold text-white font-mono tracking-wide">
             <span>{pairName}</span>
@@ -109,7 +109,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
         {/* Live Hover Metrics Display */}
         {activeCandle && (
-          <div className="flex items-center gap-3 font-mono text-[11px] text-[#8F9CAE] overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-3 font-mono text-[11px] text-[#8F9CAE]">
             <span>
               O: <strong className="text-white">${activeCandle.open.toLocaleString()}</strong>
             </span>

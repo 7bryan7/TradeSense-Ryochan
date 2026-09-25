@@ -17,16 +17,17 @@ export function useAgentRun() {
   const executeAnalysis = async (tokenId: string) => {
     setIsScanning(true);
     try {
-      const newRun = await runService.triggerAnalysisRun(tokenId, (status, stepName) => {
+      const newRun = structuredClone(await runService.triggerAnalysisRun(tokenId, (status, stepName) => {
         setScanStatus(status);
         setScanStep(stepName);
-      });
+      }));
 
       // Apply demo state adjustments if selected
       if (demoState === 'BLOCKED_SAFETY') {
         newRun.status = 'BLOCKED';
         newRun.policyResult = 'Blocked';
         newRun.simulatedFillStatus = 'BLOCKED';
+        newRun.simulation.order.status = 'BLOCKED';
         newRun.safety = mockBlockedSafetyReport;
         newRun.decision.policyOutcome = {
           allowed: false,
@@ -37,6 +38,7 @@ export function useAgentRun() {
         newRun.decisionAction = 'HOLD';
         newRun.decision.action = 'HOLD';
         newRun.simulatedFillStatus = 'HOLD';
+        newRun.simulation.order.status = 'HOLD_NO_ACTION';
         newRun.decision.rationale = 'Market consolidating within neutral range. No directional edge.';
       } else if (demoState === 'SELL_NO_POSITION') {
         newRun.decisionAction = 'SELL';
@@ -71,4 +73,3 @@ export function useAgentRun() {
     selectRun,
   };
 }
-

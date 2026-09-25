@@ -1,3 +1,4 @@
+import { PageIntro } from '../components/common/PageIntro';
 import React from 'react';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { Wallet, ArrowUpRight, ArrowDownRight, RotateCcw, ShieldCheck, History } from 'lucide-react';
@@ -6,28 +7,11 @@ export const PortfolioPage: React.FC = () => {
   const { portfolio, handleReset } = usePortfolio();
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <Wallet className="w-6 h-6 text-[#4ce07a]" />
-            Paper Portfolio & Accounting Ledger
-          </h1>
-          <p className="text-xs text-[#8F9CAE] font-mono mt-1">
-            Deterministic decimal accounting • 10 bps slippage model • Zero real funds
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleReset}
-          className="flex items-center gap-2 px-4 py-2 bg-[#1E222B] border border-white/[0.08] hover:border-white/[0.18] text-white text-xs font-mono rounded-xl transition-all shadow-sm"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-[#4ce07a]" />
-          <span>Reset to $10,000 Starting Cash</span>
-        </button>
-      </div>
+    <div className="studio-page">
+      <PageIntro eyebrow="YOUR PRACTICE ACCOUNT" title="Paper portfolio" description="See where your virtual money sits, what changed, and how each sample trade contributed.">
+        <button type="button" onClick={handleReset} className="studio-secondary"><RotateCcw size={14} />Reset sample account</button>
+      </PageIntro>
+      <div className="studio-note">Sample portfolio · Virtual USD only. Demo scans do not update this balance.</div>
 
       {/* Summary Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -36,7 +20,7 @@ export const PortfolioPage: React.FC = () => {
           <div className="text-2xl font-bold font-mono text-white mt-1">
             ${portfolio.virtualCash.toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <span className="text-[11px] font-mono text-[#5E6A7D] mt-0.5 block">Liquid Reserve</span>
+          <span className="text-[11px] font-mono text-[#5E6A7D] mt-0.5 block">Available to practice with</span>
         </div>
 
         <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
@@ -65,7 +49,7 @@ export const PortfolioPage: React.FC = () => {
             ${portfolio.totalFeesPaid.toFixed(2)}
           </div>
           <span className="text-[11px] font-mono text-[#5E6A7D] mt-0.5 block">
-            10 bps per execution
+            0.10% per sample execution
           </span>
         </div>
       </div>
@@ -73,7 +57,7 @@ export const PortfolioPage: React.FC = () => {
       {/* Active Holdings Table */}
       <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
         <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider mb-4">
-          Simulated Asset Holdings
+          Your open positions
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
@@ -124,7 +108,7 @@ export const PortfolioPage: React.FC = () => {
       <div className="bg-[#1E222B] border border-white/[0.06] rounded-2xl p-5 shadow-sm">
         <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider mb-4 flex items-center gap-2">
           <History className="w-4 h-4 text-[#4ce07a]" />
-          Transactional Ledger Audit
+          Sample transaction ledger
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
