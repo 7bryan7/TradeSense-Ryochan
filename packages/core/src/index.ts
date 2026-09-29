@@ -19,6 +19,16 @@ export const evidenceSchema = z.object({
 });
 export type Evidence = z.infer<typeof evidenceSchema>;
 
+export function evidencePriceUsd(evidence: Evidence): number | null {
+  const market = evidence.data.market;
+  const nestedPrice = market && typeof market === "object" && "price_usd" in market
+    ? (market as Record<string, unknown>).price_usd
+    : undefined;
+  const value = evidence.data.price ?? nestedPrice;
+  const price = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
 export const actionSchema = z.enum(["BUY", "HOLD", "SELL"]);
 export type Action = z.infer<typeof actionSchema>;
 

@@ -1,80 +1,129 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { AlertTriangle, X } from "lucide-react";
+import { api, conversationStorageKey, demoEntryStorageKey } from "./api";
+import { ChatView } from "./components/ChatView";
+import { AnalysisView, DashboardView, HistoryView, PortfolioView, ScheduleCard } from "./components/DashboardViews";
+import { LandingPage } from "./components/LandingPage";
+import { StudioShell } from "./components/StudioShell";
+import type { Chat, DashboardSummary, Health, Portfolio, Replay, Run, Schedule, ViewName } from "./types";
 import "./styles.css";
 
-type Run = { id: string; symbol: string; mode: string; status: string; decision: null | { action: string; summary: string; confidence: string; risks: string[] }; simulation: null | { outcome: string; quantity: string; fillPriceUsd: string; cashDeltaUsd: string; reason: string }; evidence: Array<{ id: string; asOf: string; summary: { headline: string }; warnings: string[] }> };
-type Portfolio = { cashUsd: string; mode: string; holdings: Array<{ symbol: string; quantity: string; costBasisUsd: string }> };
-type Chat = { id: string; mode: string; messages: Array<{ id: string; role: string; text: string; citations: string[] }> };
-
-async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, { ...options, headers: { "Content-Type": "application/json", ...(options?.headers ?? {}) } });
-  if (!response.ok) throw new Error((await response.json()).message ?? `Request failed (${response.status})`);
-  return response.json() as Promise<T>;
-}
-
 function App() {
+  const [entered, setEntered] = useState(() => localStorage.getItem(demoEntryStorageKey) === "entered");
+  const [view, setView] = useState<ViewName>("dashboard");
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [symbol, setSymbol] = useState("SOL");
   const [run, setRun] = useState<Run | null>(null);
+  const [runs, setRuns] = useState<Run[]>([]);
+  const [replay, setReplay] = useState<Replay | null>(null);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [health, setHealth] = useState<Health | null>(null);
   const [chat, setChat] = useState<Chat | null>(null);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const pendingChat = useRef<{ fingerprint: string; key: string } | null>(null);
 
-  const refreshPortfolio = () => api<Portfolio>("/api/portfolio").then(setPortfolio).catch((e) => setError(e.message));
-  useEffect(() => { void refreshPortfolio(); void api<Chat>("/api/chat/conversations", { method: "POST", body: JSON.stringify({ symbol }) }).then(setChat).catch((e) => setError(e.message)); }, []);
+  const refreshDashboard = (selectedSymbol = symbol) => api<DashboardSummary>(`/api/dashboard?symbol=${encodeURIComponent(selectedSymbol)}`).then((value) => { setDashboard(value); setPortfolio(value.portfolio); return value; });
+  const refreshSchedules = () => api<Schedule[]>("/api/schedules").then(setSchedules);
+  const loadReplay = async (selected: Run) => {
+    if (!selected.simulation) { setReplay(null); return; }
+    try { setReplay(await api<Replay>(`/api/runs/${selected.id}/replay`)); }
+    catch { setReplay(null); }
+  };
+  const selectRun = (selected: Run) => { setRun(selected); setSymbol(selected.symbol); void loadReplay(selected); };
+  const refreshRuns = async (preferredId?: string) => {
+    const values = await api<Run[]>("/api/history");
+    setRuns(values);
+    const selected = values.find((value) => value.id === preferredId) ?? values[0];
+    if (selected) selectRun(selected);
+    return values;
+  };
+
+  useEffect(() => {
+    if (!entered) return;
+    let active = true;
+    const report = (value: unknown) => active && setError(value instanceof Error ? value.message : "Unable to load the workspace");
+    void refreshSchedules().catch(report);
+    void api<Health>("/api/health").then((value) => active && setHealth(value)).catch(report);
+    void refreshRuns().catch(report);
+    const savedConversation = localStorage.getItem(conversationStorageKey);
+    const create = () => api<Chat>("/api/chat/conversations", { method: "POST", body: JSON.stringify({ symbol }) }).then((value) => {
+      localStorage.setItem(conversationStorageKey, value.id);
+      if (active) setChat(value);
+      return value;
+    });
+    void (savedConversation ? api<Chat>(`/api/chat/conversations/${savedConversation}`).then((value) => active && setChat(value)).catch(create) : create()).catch(report);
+    return () => { active = false; };
+  }, [entered]);
+
+  useEffect(() => {
+    if (!entered) return;
+    void refreshDashboard(symbol).catch((value) => setError(value instanceof Error ? value.message : "Unable to load dashboard data"));
+  }, [entered, symbol]);
+
+  const enterDemo = () => { localStorage.setItem(demoEntryStorageKey, "entered"); setEntered(true); };
 
   async function analyze() {
     setBusy(true); setError("");
-    try { setRun(await api<Run>("/api/runs", { method: "POST", body: JSON.stringify({ symbol, idempotencyKey: crypto.randomUUID() }) })); await refreshPortfolio(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Analysis failed"); }
-    finally { setBusy(false); }
+    try {
+      const created = await api<Run>("/api/runs", { method: "POST", body: JSON.stringify({ symbol, idempotencyKey: crypto.randomUUID() }) });
+      selectRun(created);
+      await Promise.all([refreshDashboard(symbol), refreshRuns(created.id)]);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Analysis failed");
+      await refreshRuns().catch(() => undefined);
+    } finally { setBusy(false); }
   }
 
   async function ask(event: React.FormEvent) {
-    event.preventDefault(); if (!chat || !question.trim()) return;
+    event.preventDefault();
+    if (!chat || !question.trim()) return;
     setBusy(true); setError("");
     try {
       const asksAboutDecision = /\b(why|decision|buy|hold|sell)\b/i.test(question);
-      const next = await api<Chat>(`/api/chat/conversations/${chat.id}/messages`, { method: "POST", body: JSON.stringify({ text: question, symbol, ...(run && asksAboutDecision ? { runId: run.id } : {}), idempotencyKey: crypto.randomUUID() }) });
-      setChat(next); setQuestion("");
-    } catch (e) { setError(e instanceof Error ? e.message : "Chat failed"); }
+      const runId = run && asksAboutDecision ? run.id : undefined;
+      const fingerprint = JSON.stringify({ conversationId: chat.id, text: question, symbol, runId });
+      if (pendingChat.current?.fingerprint !== fingerprint) pendingChat.current = { fingerprint, key: crypto.randomUUID() };
+      const next = await api<Chat>(`/api/chat/conversations/${chat.id}/messages`, { method: "POST", body: JSON.stringify({ text: question, symbol, ...(runId ? { runId } : {}), idempotencyKey: pendingChat.current.key }) });
+      setChat(next); setQuestion(""); pendingChat.current = null;
+    } catch (value) { setError(value instanceof Error ? value.message : "Chat failed"); }
     finally { setBusy(false); }
   }
 
-  return <main>
-    <header>
-      <div><p className="eyebrow">RYO-CHAN RESEARCH · PAPER ONLY</p><h1>TradeSense</h1><p>Evidence in. Explainable practice decision out.</p></div>
-      <span className="mode">{portfolio?.mode?.toUpperCase() ?? "LOADING"}</span>
-    </header>
-    {error && <div role="alert" className="error">{error}</div>}
-    <section className="controls card">
-      <label>Token<select value={symbol} onChange={(e) => setSymbol(e.target.value)}><option>SOL</option><option>BTC</option><option>ETH</option></select></label>
-      <button onClick={analyze} disabled={busy}>{busy ? "Working…" : "Analyze & simulate"}</button>
-      <p>No wallet. No real funds. All fills are simulated.</p>
-    </section>
-    <div className="grid">
-      <section className="card hero-card">
-        <p className="eyebrow">LATEST DECISION</p>
-        <h2>{run?.decision?.action ?? "Run an analysis"}</h2>
-        <p>{run?.decision?.summary ?? "Choose a token to create the first evidence-linked practice decision."}</p>
-        {run && <div className="meta"><span>{run.symbol}</span><span>{run.status}</span><span>{run.decision?.confidence} confidence</span></div>}
-        {run?.evidence[0] && <aside><strong>Evidence</strong><br />{run.evidence[0].summary.headline}<br /><small>{new Date(run.evidence[0].asOf).toLocaleString()} · {run.mode}</small></aside>}
-      </section>
-      <section className="card">
-        <p className="eyebrow">PAPER PORTFOLIO</p><h2>${portfolio?.cashUsd ?? "—"}</h2><p>Virtual cash</p>
-        {(portfolio?.holdings.length ?? 0) === 0 ? <p className="muted">No simulated holdings yet.</p> : portfolio?.holdings.map((h) => <p key={h.symbol}><strong>{h.symbol}</strong> {h.quantity} · cost ${h.costBasisUsd}</p>)}
-        {run?.simulation && <aside><strong>{run.simulation.outcome}</strong><br />{run.simulation.reason}<br /><small>{run.simulation.quantity} units at ${run.simulation.fillPriceUsd}</small></aside>}
-      </section>
-    </div>
-    <section className="card chat">
-      <div><p className="eyebrow">ASK TRADESENSE</p><h2>Market research chat</h2><p className="muted">Answers use the selected token and cite saved evidence. Chat never changes the paper portfolio.</p></div>
-      <div className="messages" aria-live="polite">
-        {chat?.messages.length ? chat.messages.map((m) => <article key={m.id} className={m.role}><strong>{m.role === "user" ? "You" : "TradeSense"}</strong><p>{m.text}</p>{m.citations.length > 0 && <small>Evidence: {m.citations.join(", ")}</small>}</article>) : <p className="muted">Try: “What does the data show?” or run an analysis and ask “Why this decision?”</p>}
-      </div>
-      <form onSubmit={ask}><label className="sr-only" htmlFor="question">Ask about the market</label><input id="question" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={`Ask about ${symbol} or the latest decision…`} /><button disabled={busy || !question.trim()}>Ask</button></form>
-    </section>
-  </main>;
+  async function addSchedule() {
+    setBusy(true); setError("");
+    try {
+      await api<Schedule>("/api/schedules", { method: "POST", body: JSON.stringify({ symbols: [symbol], cadenceMinutes: 5, maxRunsPerDay: 24 }) });
+      await refreshSchedules();
+    } catch (value) { setError(value instanceof Error ? value.message : "Schedule creation failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function changeSchedule(id: string, status: Schedule["status"]) {
+    setBusy(true); setError("");
+    try {
+      await api<Schedule>(`/api/schedules/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      await refreshSchedules();
+    } catch (value) { setError(value instanceof Error ? value.message : "Schedule update failed"); }
+    finally { setBusy(false); }
+  }
+
+  const openDecisionChat = () => { setQuestion("Why did the agent choose this decision?"); setView("chat"); };
+
+  if (!entered) return <LandingPage onEnter={enterDemo} />;
+
+  return <StudioShell view={view} onView={setView} portfolio={portfolio} health={health} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
+    {error && <div role="alert" className="global-error"><AlertTriangle /><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError("")}><X /></button></div>}
+    {view === "dashboard" && <><DashboardView symbol={symbol} setSymbol={setSymbol} analyze={analyze} busy={busy} run={run} replay={replay} portfolio={portfolio} comparison={dashboard?.symbol === symbol ? dashboard.comparison : null} onChat={openDecisionChat} /><div className="studio-page schedule-wrap"><ScheduleCard schedules={schedules} symbol={symbol} healthEnabled={Boolean(health?.schedulerEnabled)} busy={busy} addSchedule={addSchedule} changeSchedule={changeSchedule} /></div></>}
+    {view === "analysis" && <AnalysisView run={run} onChat={openDecisionChat} />}
+    {view === "portfolio" && <PortfolioView portfolio={portfolio} runs={runs} />}
+    {view === "history" && <HistoryView runs={runs} selected={run} onSelect={selectRun} />}
+    {view === "chat" && <ChatView chat={chat} run={run} symbol={symbol} question={question} setQuestion={setQuestion} submit={ask} busy={busy} />}
+  </StudioShell>;
 }
 
 createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);

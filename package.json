@@ -9,15 +9,15 @@
     "build:packages": "npm run build -w @tradesense/core && npm run build -w @tradesense/adapters",
     "build": "npm run build:packages && npm run build -w @tradesense/server && npm run build -w @tradesense/web",
     "dev": "npm run build:packages && concurrently -n api,web -c cyan,magenta \"npm run dev -w @tradesense/server\" \"npm run dev -w @tradesense/web\"",
-    "start": "npm run start -w @tradesense/server",
+    "start": "npm run build && npm run start -w @tradesense/server",
     "lint": "eslint .",
     "typecheck": "npm run build:packages && npm run typecheck -w @tradesense/server && npm run typecheck -w @tradesense/web",
-    "test": "vitest run",
+    "test": "npm run build:packages && vitest run",
     "test:e2e": "playwright test",
-    "doctor": "npm run doctor -w @tradesense/server",
-    "db:migrate": "npm run db:migrate -w @tradesense/server",
-    "smoke:live": "npm run smoke:live -w @tradesense/server",
-    "replay": "npm run replay -w @tradesense/server"
+    "doctor": "npm run build:packages && npm run doctor -w @tradesense/server",
+    "db:migrate": "npm run build:packages && npm run db:migrate -w @tradesense/server",
+    "smoke:live": "npm run build:packages && npm run smoke:live -w @tradesense/server",
+    "replay": "npm run build:packages && npm run replay -w @tradesense/server"
   },
   "devDependencies": {
     "@eslint/js": "latest",

@@ -7,7 +7,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   use: { baseURL: `http://127.0.0.1:${testPort}`, launchOptions: { executablePath: "/usr/bin/google-chrome" } },
   webServer: {
-    command: "npm run build && npm start",
+    command: "npm start",
     url: `http://127.0.0.1:${testPort}`,
     reuseExistingServer: false,
     timeout: 120_000,
@@ -18,6 +18,8 @@ export default defineConfig({
       DATABASE_PATH: testDatabase,
       PORT: String(testPort),
       WEB_ORIGIN: `http://127.0.0.1:${testPort}`,
+      SCHEDULER_ENABLED: "true",
+      SCHEDULER_TICK_MS: "1000",
     },
   },
 });

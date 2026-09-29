@@ -38,6 +38,16 @@ describe("GeminiModelAdapter", () => {
     expect(fake.generateContent).toHaveBeenCalledTimes(2);
   });
 
+  it("repairs a chat answer that omits required web evidence", async () => {
+    const webEvidence: Evidence = { ...evidence, id: "web-1", tool: "tavily_search", dataMode: "live" };
+    const base = { text: "A public update was reported.", limitations: [], suggestedQuestions: [] };
+    const fake = clientWith([{ ...base, citations: [evidence.id] }, { ...base, citations: [evidence.id, webEvidence.id] }]);
+    const adapter = new GeminiModelAdapter("test-key", "gemini-3.5-flash-lite", fake.client);
+    const result = await adapter.answerQuestion({ question: "Latest news?", symbol: "SOL", evidence: [evidence, webEvidence], history: [], requiredEvidenceIds: [webEvidence.id] });
+    expect(result.output.citations).toContain(webEvidence.id);
+    expect(fake.generateContent).toHaveBeenCalledTimes(2);
+  });
+
   it("retries an explicit transient provider failure", async () => {
     const transient = Object.assign(new Error("Service unavailable"), { status: 503 });
     const response = { action: "HOLD", summary: "Evidence is mixed.", supportingEvidence: [evidence.id], counterEvidence: [], risks: ["Momentum may reverse"], missingData: [], outlook: { direction: "neutral", horizon: "24 hours", invalidation: "Momentum changes materially" }, confidence: "medium" };

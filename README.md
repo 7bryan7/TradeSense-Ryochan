@@ -8,7 +8,7 @@ TradeSense is a proposed AI crypto-market analyst that scans markets, interprets
 
 > User chooses market/token → RYO tools fetch data → AI agent analyzes evidence → simulated decision → dashboard explains why
 
-**Status — September 23, 2026: runnable fixture-mode foundation with verified Gemini inference.** The TypeScript workspace now contains a minimal React dashboard and agent chat, an Express API, a durable local SQLite ledger, fixture and live RYO research adapters, and a configurable Gemini adapter. `gemini-3.5-flash-lite` produced a schema-valid, evidence-cited ETH decision and follow-up chat answer over fixture research; deterministic policy recorded a paper-only `NO_ACTION`, and chat left the portfolio unchanged. The live RYO adapter remains untested. A recurring worker, richer imported UI, deployment, and live RYO evidence remain unfinished.
+**Status — September 26, 2026: offline recovery, the responsive evidence workspace, comparable-run summaries, paper valuation, recurring scans, and hosted-provider boundaries are implemented; a full live run remains blocked by degraded RYO source data.** The TypeScript workspace contains a React landing page and application shell, responsive overview, analysis, portfolio, history, and agent-chat views, an Express API, a durable local SQLite ledger, fixture and live RYO research adapters, a configurable Gemini adapter, and a Tavily Search adapter restricted to additional chat context. The visual composition is an original implementation informed by the supplied frontend reference; its mock services, Google authentication, browser-owned provider controls, data, and media were not imported. Instant demo entry uses the existing anonymous prototype session and does not require Google. The dashboard derives price/change, decision, and simulation deltas only from compatible owned snapshots and values paper holdings with their newest saved evidence marks; missing marks make valuation partial or unavailable rather than zero. Research evidence is committed before model inference, decisions and policy inputs are committed before simulation, and retries resume saved work without duplicating paper fills or completed chat research. Anonymous browser sessions isolate portfolios, runs, history, conversations, schedules, linked-run access, and evidence citations. Recurring schedules start paused, require an operator enable flag, use durable unique token/time slots and worker leases, enforce cadence/watchlist/daily-run limits, prevent overlapping portfolio jobs, and let pause/cancel win atomically before simulation application. SQLite-backed HTTP, Gemini, and RYO operation counters enforce session and operator limits; chat has explicit conversation/message caps; graceful shutdown stops new scheduler ticks and waits for a running tick. A live RYO `analyze_token` call, one Tavily search, and one Gemini answer over combined saved evidence were verified separately, but RYO's later market-data failures still prevent a complete live-evidence paper decision. Real timestamped candle charts, deployment, and production authentication remain unfinished.
 
 The official hackathon overview and MCP Builder Guide were checked on September 23, 2026. They confirm an October 3, 2026 at 23:59 JST deadline, a six-tool authenticated read-only research surface, and server-held practice trades. The deployed catalog remains authoritative and still requires a builder credential; model availability and live response fields beyond the public envelope have not been tested in this workspace.
 
@@ -19,6 +19,7 @@ The official hackathon overview and MCP Builder Guide were checked on September 
 - [Scope](#scope)
 - [Workflow and architecture](#workflow-and-architecture)
 - [RYO integration](#ryo-integration)
+- [Tavily web research](#tavily-web-research)
 - [Agent decisions and evidence](#agent-decisions-and-evidence)
 - [Simulation contract](#simulation-contract)
 - [Dashboard](#dashboard)
@@ -54,16 +55,17 @@ Example journey:
 
 Project acceptance gates, not independently verified judging rules:
 
-- [ ] A market scan and a selected-token analysis use verified live RYO calls. The adapter matches the published REST contract, but live calls remain untested.
+- [ ] A market scan and a selected-token analysis use usable live RYO calls in one completed run. Authentication and one live analysis were verified, but current market-data responses are degraded.
 - [ ] Safety and comparison results are integrated; unavailable capabilities are explicitly disclosed.
 - [ ] Every completed decision cites persisted evidence and includes contrary evidence or missing information.
 - [x] Fixture mode demonstrates deterministic BUY/HOLD/SELL accounting with explicit fees and adverse slippage.
-- [ ] A stale or incomplete critical input prevents execution and shows the reason.
-- [ ] Refresh, retry, concurrency, and restart cannot apply a simulated trade twice.
+- [x] A stale execution price prevents simulation and records the reason.
+- [x] Run retries reuse persisted evidence/decisions, portfolio-version conflicts are blocked, and the database permits only one fill per decision; broader multi-process lease tests remain pending.
 - [ ] Dashboard summary, chart data, explanation, and history all identify the same run and data mode.
+- [x] The minimal first-screen summary and selectable history restore the same owned run, show its evidence time, decision, policy outcome, strongest risk, failure state, and replay verification, and survive refresh.
 - [x] A minimal dedicated chat section answers fixture market and saved-decision questions with source timestamps and persisted evidence IDs. Richer LLM follow-ups remain pending.
-- [ ] Chat distinguishes retrieved facts, derived calculations, and AI interpretation; missing or stale data is explicit, and chatting never applies a simulated trade.
-- [ ] A user can enable and stop bounded recurring scans, with cadence and last/next run visible.
+- [x] Fixture chat persists its evidence before answering, resumes known model failures without repeating saved RYO/Tavily research, isolates owned records, and never applies a simulated trade. Richer fact/derivation labels remain pending.
+- [x] A user can create, enable, pause, and permanently cancel a bounded owned schedule, with cadence and last/next slot visible; activation also requires the server operator gate.
 - [ ] One fresh setup and one complete browser journey are verified before claiming a working MVP.
 
 ## Scope
@@ -111,6 +113,7 @@ flowchart LR
     CHAT[Dedicated agent chat] --> API
     API --> QA[Read-only Q&A orchestration]
     QA --> RYO
+    QA --> WEB
     QA --> MODEL
     QA --> DB
 ```
@@ -130,13 +133,27 @@ The official MCP Builder Guide currently documents these six tools. The live aut
 | `monitor_market_sentiment_shift` | Seven-day sentiment change | Observation dates, coverage, regime, explicit gaps |
 | `market_overview` | Broad market context | Regime, totals, dominance, sentiment, breadth, movers |
 
-The implemented server-side REST adapter posts a bare argument object to `/tools/{tool}/call`, authenticates with `RYO_MCP_KEY`, validates the public result envelope, and uses a 60-second timeout. Before enabling live mode, query the catalog, verify the builder credential/quota, and run the smallest real read-only call. Live mode requires both a RYO key and the Gemini adapter. The current live smoke command verifies only the bounded RYO `analyze_token` call; it does not invoke Gemini or modify the paper ledger.
+The implemented server-side REST adapter posts a bare argument object to `/tools/{tool}/call`, authenticates with `RYO_MCP_KEY`, validates the public result envelope, and uses a 60-second timeout. Live `analyze_token` prices are normalized from `data.market.price_usd`; fixture prices remain supported at `data.price`. Safe provider failures retain a classified code and retryability without exposing credentials or raw payloads. Before enabling live mode, query the catalog, verify the builder credential/quota, and run the smallest real read-only call. Live mode requires both a RYO key and the Gemini adapter. The current live smoke command verifies only the bounded RYO `analyze_token` call; it does not invoke Gemini or modify the paper ledger.
+
+On September 24, 2026, authenticated diagnostics separated the MCP gateway from its data dependencies. `GET /tools`, `/health`, and `/whoami` returned HTTP 200; health reported six tools, and the key reported `tools:read`, expiry in December 2026, and all 60 per-minute requests remaining. In contrast, `analyze_token` returned `couldn't analyze SOL right now`, `deep_analysis` reported unavailable current USD data, `scan_market` returned zero candidates with `status=unavailable`, and `market_overview` returned `status=partial` with null market cap, volume, dominance, sentiment, breadth, and movers. One valid SOL snapshot had succeeded earlier the same day. This evidence indicates an intermittent or degraded downstream market-data pipeline, not an unlaunched MCP service, invalid key, exhausted quota, or busy gateway. RYO does not disclose the failing upstream source in these responses, so the exact vendor or internal component remains unknown.
+
+A September 28 UTC recheck reproduced the degradation across the full six-tool surface. Health, catalog, and identity still returned HTTP 200 with six tools and `tools:read`; `market_overview` returned a fresh `partial` live envelope and neutral regime but warned that sentiment, breadth, and movers were unavailable. `analyze_token` still could not analyze SOL, `deep_analysis` reported that current SOL/USD data was unavailable, `compare_tokens` lacked enough current USD observations, `scan_market` returned zero candidates with `status=unavailable`, and sentiment monitoring was unavailable. Provider rate-limit headers remained within 56–59 of 60 during the parallel diagnostic. The gateway and credential are working, but usable real token market data is still not flowing and no complete live decision is verified.
 
 Normalize observations into evidence records containing an ID, run ID, tool, sanitized parameters, token/network identity, source timestamp, retrieval timestamp, units, normalized values, data mode, and a redacted raw-response reference/hash. Preserve failures and missing fields. A missing value is not zero; missing safety coverage is not a clean bill of health.
 
 Use network plus contract/mint address where available; a ticker alone is ambiguous. Compare only compatible currencies and windows. Do not compare a 24-hour change with a 1-hour change as though they were equivalent.
 
 Apply bounded timeouts, retries with backoff, caching with explicit expiry, and request limits. Cache hits retain original observation times. If RYO does not supply historical candles, explicitly show that limitation or verify and disclose an additional read-only data source; do not fabricate a chart from summary metrics.
+
+## Tavily web research
+
+Tavily is the selected web-access provider for current public context such as project announcements, protocol documentation, exchange notices, regulatory news, and explanations that RYO market tools do not cover. The user has a Tavily API key with a 1,000-credit allocation. Tavily's current Researcher plan advertises 1,000 credits per month; basic search costs 1 credit and advanced search costs 2 credits. Treat the account dashboard as authoritative because plan terms and remaining credits can change.
+
+Tavily supplements RYO in **Ask TradeSense only**. It is never called by analysis runs, decisions, policy, or simulation. RYO remains the authoritative integration for token metrics, market scans, comparisons, and hackathon-specific evidence. A Tavily result is web evidence with its own source URL, title, published time when available, retrieval time, query, search depth, rank or score, and content snippet. Chat labels the returned links as Tavily web sources and keeps their evidence IDs alongside RYO citations.
+
+The implemented MVP uses the Search API only: `basic` depth, at most 5 results, no answer synthesis, no images, and no raw-page content. Deterministic chat routing invokes it for questions about news, announcements, listings, regulation, incidents, or other explicit recent public developments. Price, volume, comparison, and saved-decision questions stay on RYO or persisted evidence. Extract and Crawl are disabled. Persist URLs and citations, but treat snippets as untrusted input that cannot change tool permissions, choose arbitrary follow-up URLs, or issue trades.
+
+The server-side configuration contract is `TAVILY_API_KEY`, `TAVILY_BASE_URL=https://api.tavily.com`, `TAVILY_SEARCH_DEPTH=basic`, `TAVILY_MAX_RESULTS=5`, `TAVILY_TIMEOUT_MS=15000`, and `TAVILY_MONTHLY_CREDIT_CAP=1000`. The key stays server-side and outside logs, model prompts, browser bundles, and committed files. Before the single provider attempt, the server reserves one estimated credit in SQLite and rejects operations that would exceed the monthly cap. It records the query, settings, request ID, actual reported usage, status, and error code. The response is capped at 256 KB; source URLs are limited to public HTTP(S) links. A web-context answer must cite its Tavily evidence record, and the UI exposes the underlying source links. One one-credit live Tavily search was verified on September 24, 2026.
 
 ## Agent decisions and evidence
 
@@ -217,6 +234,8 @@ Support loading, partial data, no results, stale data, blocked analysis, provide
 
 Use accessible contrast, keyboard navigation, readable mobile layouts, and text/icons alongside risk colors. A chart must have a textual summary. Expose detailed evidence on demand so the main screen remains understandable in 30 seconds.
 
+The current responsive workspace implements an instant-entry landing screen, sidebar and mobile navigation, token selection cards, a market snapshot, decision summary, evidence/risk details, safety coverage, paper portfolio, selectable owned history, failure/policy states, schedule controls, and read-only replay verification. `GET /api/dashboard?symbol=SOL` returns one synchronized owned summary containing the latest selected-token run, compatibility-checked previous-run deltas, portfolio marks/valuation, and chart availability. Comparable runs must share symbol, mode, available network/address identity, and metric window. The paper portfolio exposes virtual cash, total equity, realized and unrealized P&L, per-holding market value, mark age, and complete/partial/unavailable valuation status. Dedicated analysis, portfolio, history, and chat views all use the existing server-owned data and actions. The fixture browser journey checks that the core decision, comparison, valuation, schedule, chat, and portfolio state restore after refresh. Because the API does not yet persist a timestamped candle series, the snapshot shows the saved reference price/change and an explicit “No candle series” state rather than drawing invented history.
+
 ## Agent chat
 
 Dedicate a clearly labeled **Ask TradeSense** section of the webapp to conversational research. It should be accessible from the dashboard as a persistent panel or tab, with a full-width view on smaller screens. Include a message history, input box, suggested questions, selected market/token context, and visible LIVE/FIXTURE and freshness labels.
@@ -234,6 +253,7 @@ The intended chat flow is:
 
 1. Accept a question with explicit market/token context and, optionally, a selected prior run. Resolve ambiguous token names before fetching data.
 2. Retrieve the user's permitted saved evidence. For current-market questions, fetch missing or stale information through the verified read-only RYO tools within configured limits. For questions about an earlier decision, use that decision's saved snapshot and label any newer comparison separately.
+   When the question explicitly needs current public news or project context, add one bounded Tavily Search result set. Tavily never replaces RYO metrics and is never available to the decision or simulation flow.
 3. Generate a concise answer that distinguishes source observations, calculated metrics, and AI interpretation. Ground market-specific claims in persisted evidence; derived numbers must retain their inputs, units, time window, and calculation method.
 4. Validate citations and save the answer, evidence references, tool activity, and model/prompt metadata. Show clickable evidence details with source and observation time, plus limitations or uncertainty.
 5. Preserve context for follow-ups. Make a token, network, run, or data-mode change explicit instead of silently answering about the previous selection.
@@ -244,7 +264,9 @@ Chat performs research only. It may explain an existing BUY/HOLD/SELL decision o
 
 Use the same server-side model/RYO adapters, session checks, data-mode separation, and provider budgets as the rest of the product. Bound message length, conversation context, tool calls, output size, and concurrent requests. Market text and chat messages cannot override tool permissions. Validate cited evidence against the conversation owner's accessible records and render responses without executable HTML.
 
-Persist conversations and messages so refresh restores the discussion. Each answer records its own context and evidence snapshot; a later refresh must not rewrite old answers with new prices. Display pending, fetching, answering, complete, insufficient-data, and failed states. Retrying a message uses the same idempotency key and retrieves or resumes its persisted operation; do not create duplicate messages or repeat a completed provider call. An ambiguous interrupted provider call must be surfaced rather than blindly repeated.
+The implemented browser stores one anonymous session ID and its current conversation ID locally so refresh restores the same owned discussion. The API binds portfolios, runs, conversations, linked runs, and cited evidence to that session. Chat messages move through `researching`, `answering`, `complete`, and `failed`; evidence is committed immediately after each completed research boundary. Retrying the same text/context with the same idempotency key reuses saved RYO and Tavily snapshots and resumes a known model failure. If a process interruption leaves a model call's external outcome ambiguous, the API returns `CHAT_MODEL_OUTCOME_UNKNOWN` instead of repeating it. Each answer retains its original evidence snapshot and timestamps.
+
+The server retains at most 10 conversations per session and 100 stored messages per conversation by default. Each new question reserves room for its user and assistant messages; when the cap is reached, the API asks the user to start a new conversation. Records are retained for audit rather than silently deleted. The anonymous session header is a prototype ownership boundary, not production identity. A hosted deployment still needs authenticated, unguessable server-issued sessions, secure cookies, expiry/rotation, and CSRF protection where applicable.
 
 ## Storage and recovery
 
@@ -263,9 +285,11 @@ Run states: `QUEUED → FETCHING → ANALYZING → APPLYING → COMPLETED`, with
 
 Enforce a unique session/idempotency key and reject a changed body under the same key with `409`. Enforce one simulation application per decision. Use a database transaction and portfolio lock/version check for the ledger and completion record; retries must return the existing result.
 
-Persist the decision before applying its trade. After a restart, resume from saved state rather than re-asking the model or duplicating ledger writes. Expired worker leases allow recovery. Keep external calls outside long-lived database transactions.
+The implemented run lifecycle persists evidence before model inference and persists the validated decision plus immutable policy input before applying its paper trade. Retrying the same idempotency key resumes from the latest saved boundary, while a completed retry returns the existing fill. The single-process server coalesces concurrent requests for the same key; a changed portfolio version becomes an explicit no-trade outcome. External calls stay outside database transactions.
 
-For recurring scans, use one durable job per schedule/time slot, prevent overlapping runs for the same portfolio, cap watchlist size and provider/model calls, and expose pause/stop. Disabling a schedule prevents new jobs; cancellation before application must win atomically against a trade commit. Browser polling alone is not autonomous scheduling.
+Recurring scans are implemented with one durable job per schedule/token/time slot, unique slot constraints, expiring worker leases, and one in-flight job per owned portfolio. Schedules support one to three tokens, a 5-minute to 24-hour cadence, and a configurable 1–100 run daily cap. New schedules start paused; activation requires `SCHEDULER_ENABLED=true`. Pausing or cancelling stops queued jobs and is checked again inside the ledger transaction before application. Cancelled schedules are terminal. Missed intervals are skipped instead of creating an unbounded catch-up burst.
+
+Except for health checks, the API permits 120 requests per session per UTC minute by default. Live RYO and Gemini operations reserve durable usage rows before the call, so failures also consume the configured budget. Defaults are 500 RYO operations per UTC day, 200 Gemini operations per UTC day, and 30 Gemini operations per session per UTC hour. Fixture adapters bypass provider budgets. On `SIGINT` or `SIGTERM`, the server stops accepting scheduler ticks, closes the HTTP listener, waits for the current tick to finish, and then closes SQLite; an interrupted durable slot can be recovered after its lease expires.
 
 Separate fixture and live portfolios and conversations. Resetting a demo creates a new portfolio rather than deleting its audit trail. Session ownership protects runs, schedules, portfolios, conversations, messages, and their evidence; a record ID is not authentication. Conversation mode is fixed at creation. Bound retained chat history with a documented retention policy while preserving evidence references for retained answers.
 
@@ -310,17 +334,21 @@ These are proposed application routes, not RYO endpoints:
 | `GET /api/market` | Latest persisted market snapshot with age and coverage |
 | `POST /api/runs` | Validate token/market selection, optional comparison, and idempotency key; enqueue run |
 | `GET /api/runs/:id` | Owned run, evidence, decision, and simulation status |
+| `GET /api/runs/:id/replay` | Read-only deterministic policy replay for an owned completed run |
 | `GET /api/history` | Paginated owned runs with mode/token filters |
 | `GET /api/portfolio` | Owned paper portfolio and timestamped valuation |
+| `GET /api/dashboard?symbol=<symbol>` | Synchronized latest run, compatible-run changes, timestamped paper valuation, and chart availability for one owned asset |
+| `GET /api/schedules` | List owned schedules and their latest durable slot |
 | `POST /api/schedules` | Create a bounded recurring analysis schedule |
 | `PATCH /api/schedules/:id` | Enable, pause, or change an owned schedule within server limits |
-| `POST /api/runs/:id/cancel` | Cancel pending work before simulation application |
 | `POST /api/chat/conversations` | Create an owned conversation with fixed data mode and initial market/token context |
 | `GET /api/chat/conversations` | List the session's conversations with pagination |
 | `GET /api/chat/conversations/:id` | Retrieve owned context and paginated messages, statuses, and evidence references |
 | `POST /api/chat/conversations/:id/messages` | Accept a bounded question, explicit context and optional run reference, plus idempotency key; enqueue research-only Q&A |
 
 The server generates authoritative IDs and enforces limits. Return structured errors `{ code, message, requestId, retryable }`. Keep secrets and stack traces out of responses. Poll persisted state first; streaming is optional polish. Chat submission returns the persisted message/operation ID and status; poll the conversation to retrieve completion. Enforce conversation ownership and validate linked run/evidence access. Reusing a message idempotency key with different text or context returns `409`.
+
+Except for `/api/health`, current API requests require `X-TradeSense-Session` containing a UUID. The browser creates and retains this identifier in local storage. Missing or malformed identifiers return `401 SESSION_REQUIRED`; inaccessible owned records return `404` without revealing whether another session owns them.
 
 ## Setup contract
 
@@ -336,7 +364,7 @@ Node.js 22.13 or newer and npm are required. From the repository root, install f
 | `npm test` | Offline policy, accounting, persistence, and adapter fixture checks |
 | `npm run test:e2e` | Browser journey against isolated fixture data |
 | `npm run smoke:live` | Bounded real RYO `analyze_token` request only; no model call or ledger write |
-| `npm run replay -- --run-id <id>` | Reserved CLI contract; currently reports that replay is the next persistence milestone and performs no mutation |
+| `npm run replay -- --run-id <id>` | Recompute a saved decision's policy result from its immutable inputs, compare it with the stored outcome, and report without provider calls or portfolio mutation |
 | `npm run build` / `npm run start` | Build and start the supported deployment |
 
 The committed `.env.example` contains placeholder-only local settings:
@@ -346,6 +374,14 @@ DATA_MODE=fixture
 PORT=4000
 WEB_ORIGIN=http://localhost:3000
 DATABASE_PATH=./data/tradesense.sqlite
+RYO_MCP_URL=https://app-ryochan.com/api/mcp
+RYO_MCP_KEY=
+TAVILY_API_KEY=
+TAVILY_BASE_URL=https://api.tavily.com
+TAVILY_SEARCH_DEPTH=basic
+TAVILY_MAX_RESULTS=5
+TAVILY_TIMEOUT_MS=15000
+TAVILY_MONTHLY_CREDIT_CAP=1000
 LLM_PROVIDER=gemini
 LLM_MODEL=gemini-3.5-flash-lite
 LLM_API_KEY=
@@ -356,10 +392,17 @@ SIM_MAX_BUY_EQUITY_BPS=500
 SIM_MAX_TOKEN_EXPOSURE_BPS=2000
 SIM_MAX_PRICE_AGE_SECONDS=60
 SCHEDULER_ENABLED=false
-SCAN_INTERVAL_SECONDS=300
+SCHEDULER_TICK_MS=10000
+SCHEDULER_LEASE_SECONDS=120
+HTTP_REQUESTS_PER_SESSION_MINUTE=120
+MODEL_CALLS_PER_SESSION_HOUR=30
+RYO_DAILY_CALL_CAP=500
+GEMINI_DAILY_CALL_CAP=200
+CHAT_MAX_CONVERSATIONS_PER_SESSION=10
+CHAT_MAX_MESSAGES_PER_CONVERSATION=100
 ```
 
-With no `.env`, both research and reasoning use deterministic fixtures and make no external requests. To test Gemini against fixture market evidence, copy `.env.example` to `.env`, keep `DATA_MODE=fixture`, and add the Gemini API key. To enable live RYO research later, also set `DATA_MODE=live` and add `RYO_MCP_KEY`; live mode rejects missing configuration.
+With no `.env`, research and reasoning use deterministic fixtures and make no external requests. To test Gemini against fixture market evidence, copy `.env.example` to `.env`, keep `DATA_MODE=fixture`, and add the Gemini API key. Adding `TAVILY_API_KEY` enables one-credit Tavily searches only for chat questions matched by the public-context router; all other chat and every analysis run avoid Tavily. To enable live RYO research later, also set `DATA_MODE=live` and add `RYO_MCP_KEY`; live mode rejects missing configuration.
 
 Load server configuration explicitly. Never place provider credentials in browser-exposed `VITE_*` variables, logs, screenshots, or committed files. Protect hosted model usage with session ownership, rate limits, and operator-configured cost/request caps. Live research may incur provider fees even though all trades are simulated; use configured access and spending authorization.
 
@@ -370,11 +413,11 @@ This is the remaining ordered build plan. The official submission deadline check
 | Milestone | Deliverable | Completion gate |
 |---|---|---|
 | 1 — Verify and scaffold | Official integration notes, workspaces, schemas, database, fixtures | Workspace and offline app complete; one real RYO call still required |
-| 2 — Research path | RYO adapter, model adapter, saved evidence and decision | One live selected-token run with valid evidence citations |
-| 3 — Simulation | Policy, decimal accounting, transactional ledger, recovery | BUY/HOLD/SELL and duplicate/restart cases pass |
-| 4 — Dashboard and chat | Overview, cards, charts, risk, explanation, portfolio/history, and dedicated market Q&A | Full browser journey; 30-second comprehension review; cited chat answer and contextual follow-up survive refresh |
-| 5 — Autonomy and hardening | Bounded recurring worker, pause/cancel, rate limits | Durable schedule and no overlapping/double-applied run |
-| 6 — Demo readiness | Fresh setup, live evidence, failure demo, deployment plan | Rehearsed demo and accurate limitations |
+| 2 — Research path | RYO adapter, bounded Tavily search adapter, model adapter, saved evidence and decision | One live selected-token run with valid RYO and optional web citations |
+| 3 — Simulation | Policy, decimal accounting, transactional ledger, recovery | Manual-run resume, stale/version blocks, unique fill, and deterministic replay pass offline; broader accounting cases remain |
+| 4 — Dashboard and chat | Overview, cards, charts, risk, explanation, portfolio/history, and dedicated market Q&A | Responsive reference-informed workspace, run summary/history/replay, schedules, and chat recovery pass the fixture browser journey; real candle charts await persisted source data |
+| 5 — Autonomy and hardening | Bounded recurring worker, pause/cancel, rate limits | Durable slots/leases, cancellation-before-application, HTTP/model/provider caps, chat bounds, and graceful worker shutdown pass offline |
+| 6 — Demo readiness | Fresh setup, live evidence, failure demo, deployment plan | Clean fixture setup and automated browser rehearsal pass; runbook is written; current complete live run and deployment remain pending |
 
 Prove the data integration before expanding the UI. If a tool is unavailable, preserve the limitation and revise scope transparently. Cut animations, extra pages, and advanced chart controls before evidence provenance, accurate accounting, or recovery.
 
@@ -405,6 +448,8 @@ Offline tests establish application behavior, not live RYO compatibility or pred
 
 ## Demo and submission
 
+The executable fixture walkthrough, failure checks, live-recovery gate, deployment preflight, and verified-claims list are in [docs/DEMO_RUNBOOK.md](docs/DEMO_RUNBOOK.md).
+
 Suggested three-minute narrative, subject to official event rules:
 
 1. **0:00–0:30:** Select a token and explain the two-track product.
@@ -426,7 +471,7 @@ Use clearly labeled fixtures to demonstrate specific edge cases; do not present 
 
 TradeSense is a research and simulation prototype. Safety checks have limited coverage; model explanations can be wrong; a quote-based paper fill does not model real liquidity, routing, latency, or execution. Paper returns do not establish future performance. The project is not financial advice.
 
-The next implementation step is to configure a RYO builder credential, discover the live catalog, capture one sanitized read-only response, and prove one complete live-evidence/Gemini/paper-simulation run. Then implement deterministic replay, restart recovery, and stronger concurrent portfolio updates before adding recurring scans. Later work can integrate the provided production UI, broaden coverage, and add carefully specified backtesting.
+While RYO market data remains unavailable, the next implementation choice is a persisted candle-source contract, multi-conversation chat navigation, or detailed saved tool timelines. Historical chart work requires a verified timestamped price/volume source and must not use Tavily as a market feed. A hosting plan can also be prepared without claiming deployment. When RYO recovers, rerun one complete live evidence → Gemini → paper-simulation validation using the runbook gate. The current visual shell is deliberately separated from provider and ledger logic so a later UI refinement can replace presentation components without changing the safety contracts.
 
 ## Reference provenance
 
@@ -438,10 +483,14 @@ This plan uses the user's TradeSense brief as the product scope. The following A
 
 AgentPay's integrations, deployments, credentials, action history, event rules, and authorizations do not apply to TradeSense.
 
-Official sources checked September 23, 2026:
+Official sources checked September 23–24, 2026:
 
 - [RYO-CHAN Hackathon overview](https://dev.ryobuild.com/hackathon)
 - [RYO Builder MCP Guide](https://dev.ryobuild.com/docs/MCP-Builder-Guide.md)
 - [Gemini 3.5 Flash-Lite model](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)
 - [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output)
 - [Gemini API pricing and free tier](https://ai.google.dev/gemini-api/docs/pricing)
+- [Tavily chat and source-attribution example](https://docs.tavily.com/examples/use-cases/chat)
+- [Tavily Search API reference](https://docs.tavily.com/documentation/api-reference/endpoint/search)
+- [Tavily pricing and credit allocation](https://www.tavily.com/pricing)
+- [Tavily basic versus advanced search credits](https://help.tavily.com/articles/6938147944-basic-vs-advanced-search-what-s-the-difference)
