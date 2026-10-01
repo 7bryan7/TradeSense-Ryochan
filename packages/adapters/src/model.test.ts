@@ -29,6 +29,21 @@ describe("GeminiModelAdapter", () => {
     expect(result.audit.provider).toBe("gemini");
   });
 
+  it("repairs a decision that omits required deep-analysis evidence", async () => {
+    const deepEvidence: Evidence = { ...evidence, id: "evidence-deep", tool: "deep_analysis" };
+    const base = { action: "BUY", summary: "Positive momentum with reviewed risk coverage.", counterEvidence: [], risks: ["Momentum may reverse"], missingData: [], outlook: { direction: "upside bias", horizon: "24 hours", invalidation: "Momentum turns negative" }, confidence: "medium" };
+    const fake = clientWith([
+      { ...base, supportingEvidence: [evidence.id] },
+      { ...base, supportingEvidence: [evidence.id, deepEvidence.id] },
+    ]);
+    const adapter = new GeminiModelAdapter("test-key", "gemini-3.5-flash-lite", fake.client);
+
+    const result = await adapter.createDecision({ symbol: "SOL", evidence: [evidence, deepEvidence], portfolio: { cashUsd: "10000.00", positionQuantity: "0", positionCostBasisUsd: "0.00" } });
+
+    expect(result.output.supportingEvidence).toContain(deepEvidence.id);
+    expect(fake.generateContent).toHaveBeenCalledTimes(2);
+  });
+
   it("repairs one answer that cites evidence outside the supplied set", async () => {
     const base = { text: "SOL has positive fixture momentum.", limitations: [], suggestedQuestions: [] };
     const fake = clientWith([{ ...base, citations: ["invented"] }, { ...base, citations: [evidence.id] }]);

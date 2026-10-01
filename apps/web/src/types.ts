@@ -22,10 +22,26 @@ export type Evidence = {
   warnings: string[];
 };
 
+export type ResearchTimelineStep = {
+  ordinal: number;
+  role: string;
+  tool: string;
+  args: Record<string, unknown>;
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  attemptCount: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  evidenceId: string | null;
+  providerStatus: string | null;
+  failure: null | { code: string; message: string };
+};
+
 export type Run = {
   id: string;
   symbol: string;
   mode: string;
+  researchPlanVersion: string | null;
   status: string;
   createdAt: string;
   completedAt: string | null;
@@ -33,6 +49,7 @@ export type Run = {
   failure: null | { stage: string; code: string; message: string };
   decision: Decision | null;
   simulation: null | { action: string; outcome: string; quantity: string; fillPriceUsd: string; feeUsd: string; cashDeltaUsd: string; reason: string };
+  researchTimeline: ResearchTimelineStep[];
   evidence: Evidence[];
 };
 
@@ -40,8 +57,17 @@ export type Replay = {
   runId: string;
   matches: boolean;
   portfolioMutated: boolean;
-  saved: { outcome: string };
-  replayed: { outcome: string };
+  saved: ReplayResult;
+  replayed: ReplayResult;
+};
+
+export type ReplayResult = {
+  outcome: string;
+  quantityMicros: string;
+  fillPriceCents: string;
+  feeCents: string;
+  cashDeltaCents: string;
+  reason: string;
 };
 
 export type Portfolio = {
@@ -78,6 +104,22 @@ export type DashboardSummary = {
   chart: { status: "unavailable"; reason: string };
 };
 
+export type MarketOverview = {
+  mode: string;
+  generatedAt: string;
+  maxAgeSeconds: number;
+  snapshot: Evidence | null;
+  ageSeconds: number | null;
+  freshness: "fresh" | "stale" | "unknown";
+  latestAttempt: null | {
+    status: "FETCHING" | "COMPLETED" | "FAILED";
+    startedAt: string;
+    completedAt: string | null;
+    evidenceId: string | null;
+    failure: null | { code: string; message: string };
+  };
+};
+
 export type Schedule = {
   id: string;
   mode: string;
@@ -94,6 +136,6 @@ export type Schedule = {
 
 export type Health = { status: string; mode: string; trading: string; schedulerEnabled: boolean };
 export type ChatSource = { evidenceId: string; kind: "ryo" | "web"; title: string; url?: string; publishedAt?: string | null; retrievedAt: string };
-export type ChatMessage = { id: string; role: string; text: string; status: string; citations: string[]; sources: ChatSource[]; failure?: null | { stage: string; code: string; message: string }; createdAt?: string };
+export type ChatMessage = { id: string; role: string; text: string; symbol?: string | null; runId?: string | null; status: string; citations: string[]; sources: ChatSource[]; attemptCount?: number; failure?: null | { stage: string; code: string; message: string }; createdAt?: string; updatedAt?: string };
 export type Chat = { id: string; mode: string; symbol: string | null; messages: ChatMessage[] };
 export type ViewName = "dashboard" | "analysis" | "chat" | "portfolio" | "history";

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createMessageSchema, createRunSchema, tokenSymbolSchema } from "@tradesense/core";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
-import { ask, conversationView, createConversation, createRun, dashboardSummary, getRun, history, market, portfolio, replayRun, touchSession } from "./services.js";
+import { ask, conversationView, createConversation, createRun, dashboardSummary, getRun, history, marketOverview, portfolio, refreshMarketOverview, replayRun, touchSession } from "./services.js";
 import { createSchedule, listSchedules, updateSchedule } from "./scheduler.js";
 import { consumeHttpRequest } from "./limits.js";
 
@@ -29,7 +29,8 @@ export function createApp() {
       next(Object.assign(new Error("A valid X-TradeSense-Session header is required"), { status: 401, code: "SESSION_REQUIRED", retryable: false, cause: error }));
     }
   });
-  app.get("/api/market", async (_req, res, next) => { try { res.json(await market(res.locals.sessionId)); } catch (e) { next(e); } });
+  app.get("/api/market", (_req, res, next) => { try { res.json(marketOverview(res.locals.sessionId)); } catch (e) { next(e); } });
+  app.post("/api/market/refresh", async (_req, res, next) => { try { res.json(await refreshMarketOverview(res.locals.sessionId)); } catch (e) { next(e); } });
   app.post("/api/runs", async (req, res, next) => { try { const body = createRunSchema.parse(req.body); res.status(201).json(await createRun(body.symbol, body.idempotencyKey, undefined, res.locals.sessionId)); } catch (e) { next(e); } });
   app.get("/api/runs/:id/replay", (req, res, next) => { try { res.json(replayRun(req.params.id, res.locals.sessionId)); } catch (e) { next(e); } });
   app.get("/api/runs/:id", (req, res, next) => { try { res.json(getRun(req.params.id, res.locals.sessionId)); } catch (e) { next(e); } });

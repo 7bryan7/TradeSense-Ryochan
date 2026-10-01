@@ -25,15 +25,29 @@ export function migrate(): void {
     CREATE TABLE IF NOT EXISTS runs (
       id TEXT PRIMARY KEY, session_id TEXT REFERENCES sessions(id), portfolio_id TEXT NOT NULL REFERENCES portfolios(id), symbol TEXT NOT NULL,
       idempotency_key TEXT NOT NULL, input_hash TEXT NOT NULL, mode TEXT NOT NULL,
+      research_plan_version TEXT,
       status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT, completed_at TEXT,
       failure_stage TEXT, failure_code TEXT, failure_message TEXT,
       attempt_count INTEGER NOT NULL DEFAULT 1,
       UNIQUE(portfolio_id, idempotency_key)
     );
     CREATE TABLE IF NOT EXISTS evidence (
-      id TEXT PRIMARY KEY, run_id TEXT, message_id TEXT, purpose TEXT NOT NULL,
+      id TEXT PRIMARY KEY, session_id TEXT REFERENCES sessions(id), run_id TEXT, message_id TEXT, purpose TEXT NOT NULL,
       tool TEXT NOT NULL, symbol TEXT, status TEXT NOT NULL, mode TEXT NOT NULL,
       as_of TEXT NOT NULL, retrieved_at TEXT NOT NULL, payload_json TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS market_overview_attempts (
+      id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), mode TEXT NOT NULL,
+      status TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT,
+      evidence_id TEXT, failure_code TEXT, failure_message TEXT
+    );
+    CREATE TABLE IF NOT EXISTS research_steps (
+      id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id), plan_version TEXT NOT NULL,
+      ordinal INTEGER NOT NULL, role TEXT NOT NULL, tool TEXT NOT NULL, args_json TEXT NOT NULL,
+      status TEXT NOT NULL, attempt_count INTEGER NOT NULL DEFAULT 0,
+      started_at TEXT, completed_at TEXT, evidence_id TEXT, provider_status TEXT,
+      failure_code TEXT, failure_message TEXT,
+      UNIQUE(run_id, ordinal)
     );
     CREATE TABLE IF NOT EXISTS decisions (
       id TEXT PRIMARY KEY, run_id TEXT UNIQUE NOT NULL REFERENCES runs(id), action TEXT NOT NULL,
@@ -99,6 +113,8 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_schedule_slots_claim ON schedule_slots(status, lease_expires_at, slot_at);
     CREATE INDEX IF NOT EXISTS idx_provider_usage_daily ON provider_usage(provider, day_utc);
     CREATE INDEX IF NOT EXISTS idx_provider_usage_session_hour ON provider_usage(provider, session_id, hour_utc);
+    CREATE INDEX IF NOT EXISTS idx_research_steps_run ON research_steps(run_id, ordinal);
+    CREATE INDEX IF NOT EXISTS idx_market_overview_session ON market_overview_attempts(session_id, mode, started_at);
   `);
   const ensureColumn = (table: string, name: string, definition: string) => {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
@@ -110,6 +126,8 @@ export function migrate(): void {
   ensureColumn("runs", "failure_message", "TEXT");
   ensureColumn("runs", "attempt_count", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn("runs", "session_id", "TEXT");
+  ensureColumn("evidence", "session_id", "TEXT");
+  ensureColumn("runs", "research_plan_version", "TEXT");
   ensureColumn("decisions", "policy_input_json", "TEXT");
   ensureColumn("decisions", "portfolio_version", "INTEGER");
   ensureColumn("fills", "portfolio_version_at_apply", "INTEGER");

@@ -28,6 +28,7 @@ const envSchema = z.object({
   SIM_MAX_BUY_EQUITY_BPS: z.coerce.number().int().min(1).max(10_000).default(500),
   SIM_MAX_TOKEN_EXPOSURE_BPS: z.coerce.number().int().min(1).max(10_000).default(2000),
   SIM_MAX_PRICE_AGE_SECONDS: z.coerce.number().int().min(1).max(3_600).default(60),
+  MARKET_OVERVIEW_MAX_AGE_SECONDS: z.coerce.number().int().min(30).max(86_400).default(300),
   SCHEDULER_ENABLED: z.string().default("false").transform((value) => value === "true"),
   SCHEDULER_TICK_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
   SCHEDULER_LEASE_SECONDS: z.coerce.number().int().min(30).max(900).default(120),

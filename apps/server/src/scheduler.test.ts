@@ -13,7 +13,7 @@ process.env.DATABASE_PATH = databasePath;
 process.env.SCHEDULER_ENABLED = "false";
 process.env.SCHEDULER_LEASE_SECONDS = "120";
 
-const [{ FixtureModelAdapter }, database, scheduler, services] = await Promise.all([
+const [{ FixtureModelAdapter, FixtureResearchAdapter }, database, scheduler, services] = await Promise.all([
   import("@tradesense/adapters"),
   import("./db.js"),
   import("./scheduler.js"),
@@ -25,7 +25,8 @@ const sessionB = "40000000-0000-4000-8000-000000000004";
 let clock = new Date("2026-09-26T10:00:00.000Z");
 
 const research: ResearchAdapter = {
-  call: async (_tool, args = {}): Promise<Evidence> => {
+  call: async (tool, args = {}): Promise<Evidence> => {
+    if (tool !== "analyze_token") return new FixtureResearchAdapter().call(tool, args);
     const symbol = String(args.symbol ?? "BTC");
     const timestamp = clock.toISOString();
     return {

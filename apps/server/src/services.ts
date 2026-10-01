@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { FixtureModelAdapter, FixtureResearchAdapter, GeminiModelAdapter, RyoRestAdapter, type ModelAdapter, type ModelAudit, type ResearchAdapter } from "@tradesense/adapters";
+import { FixtureModelAdapter, FixtureResearchAdapter, GeminiModelAdapter, RyoRestAdapter, type ModelAdapter, type ModelAudit, type ResearchAdapter, type RyoTool } from "@tradesense/adapters";
 import { centsToUsd, evidencePriceUsd, quantityToString, simulateDecision, type Evidence } from "@tradesense/core";
 import { config } from "./config.js";
 import { db, transaction } from "./db.js";
@@ -68,6 +68,12 @@ export interface ChatDependencies {
 }
 
 interface PolicyInput {
+  researchPlanVersion?: string;
+  criticalEvidence?: {
+    analyzeTokenId: string;
+    deepAnalysisId: string;
+    deepAnalysisStatus: Evidence["status"];
+  };
   referencePriceCents: string;
   evidenceAsOf: string;
   portfolioVersion: number;
@@ -87,8 +93,107 @@ interface PolicyInput {
   };
 }
 
+export const DECISION_RESEARCH_PLAN_VERSION = "selected-token-v2";
+
+interface ResearchStep {
+  ordinal: number;
+  role: "selected_token" | "risk_coverage" | "market_context" | "benchmark_comparison";
+  tool: RyoTool;
+  args: Record<string, unknown>;
+}
+
+function comparisonBenchmark(symbol: string): string {
+  return symbol === "BTC" ? "ETH" : "BTC";
+}
+
+function decisionResearchPlan(symbol: string): ResearchStep[] {
+  return [
+    { ordinal: 1, role: "selected_token", tool: "analyze_token", args: { symbol } },
+    { ordinal: 2, role: "risk_coverage", tool: "deep_analysis", args: { symbol } },
+    { ordinal: 3, role: "market_context", tool: "scan_market", args: { top_n: 5 } },
+    { ordinal: 4, role: "benchmark_comparison", tool: "compare_tokens", args: { symbols: `${symbol},${comparisonBenchmark(symbol)}`, intent: "swing" } },
+  ];
+}
+
+function ensureResearchSteps(runId: string, plan: ResearchStep[]): void {
+  transaction(() => {
+    const insert = db.prepare("INSERT OR IGNORE INTO research_steps (id, run_id, plan_version, ordinal, role, tool, args_json, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')");
+    for (const step of plan) insert.run(randomUUID(), runId, DECISION_RESEARCH_PLAN_VERSION, step.ordinal, step.role, step.tool, JSON.stringify(step.args));
+  });
+}
+
+function decisionEvidenceFor(runId: string): Evidence[] {
+  const rows = db.prepare("SELECT payload_json FROM evidence WHERE run_id=? AND purpose='decision' ORDER BY rowid").all(runId) as Array<{ payload_json: string }>;
+  return rows.map((row) => JSON.parse(row.payload_json) as Evidence);
+}
+
+function primaryTokenEvidence(evidence: Evidence[]): Evidence | undefined {
+  return evidence.find((item) => item.tool === "analyze_token");
+}
+
+async function collectDecisionEvidence(runId: string, symbol: string, sessionId: string, dependencies: RunDependencies, clock: () => Date): Promise<Evidence[]> {
+  const plan = decisionResearchPlan(symbol);
+  ensureResearchSteps(runId, plan);
+  const saved = decisionEvidenceFor(runId);
+  const byTool = new Map(saved.map((item) => [item.tool, item]));
+
+  for (const step of plan) {
+    const existing = byTool.get(step.tool);
+    if (existing) {
+      db.prepare("UPDATE research_steps SET status='COMPLETED', completed_at=COALESCE(completed_at, ?), evidence_id=?, provider_status=?, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+        .run(existing.retrievedAt, existing.id, existing.status, runId, step.ordinal);
+      continue;
+    }
+    const startedAt = clock().toISOString();
+    db.prepare("UPDATE research_steps SET status='RUNNING', attempt_count=attempt_count+1, started_at=?, completed_at=NULL, evidence_id=NULL, provider_status=NULL, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+      .run(startedAt, runId, step.ordinal);
+    try {
+      const evidence = await callResearchWithBudget(dependencies.research, step.tool, step.args, sessionId, "decision");
+      if (evidence.tool !== step.tool) {
+        throw Object.assign(new Error(`RYO returned ${evidence.tool} while ${step.tool} was requested`), { code: "RYO_TOOL_MISMATCH", retryable: false });
+      }
+      if ((step.tool === "analyze_token" || step.tool === "deep_analysis") && evidence.symbol !== symbol) {
+        throw Object.assign(new Error(`RYO returned ${evidence.symbol ?? "no symbol"} while ${symbol} was requested`), { code: "RYO_IDENTITY_MISMATCH", retryable: false });
+      }
+      transaction(() => {
+        db.prepare("INSERT INTO evidence (id, run_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'decision', ?, ?, ?, ?, ?, ?, ?)")
+          .run(evidence.id, runId, evidence.tool, evidence.symbol ?? null, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
+        db.prepare("UPDATE research_steps SET status='COMPLETED', completed_at=?, evidence_id=?, provider_status=?, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+          .run(clock().toISOString(), evidence.id, evidence.status, runId, step.ordinal);
+        db.prepare("UPDATE runs SET updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
+          .run(clock().toISOString(), runId);
+      });
+      byTool.set(step.tool, evidence);
+    } catch (error) {
+      const value = error as Error & { code?: string };
+      db.prepare("UPDATE research_steps SET status='FAILED', completed_at=?, failure_code=?, failure_message=? WHERE run_id=? AND ordinal=?")
+        .run(clock().toISOString(), value.code ?? "RYO_REQUEST_FAILED", value.message.slice(0, 1_000), runId, step.ordinal);
+      throw error;
+    }
+  }
+
+  return plan.map((step) => byTool.get(step.tool)).filter((item): item is Evidence => Boolean(item));
+}
+
 const activeRuns = new Map<string, { inputHash: string; promise: Promise<ReturnType<typeof getRun>> }>();
 const activeChats = new Map<string, { inputHash: string; promise: Promise<ReturnType<typeof conversationView>> }>();
+const activeMarketOverviews = new Map<string, Promise<MarketOverviewView>>();
+
+interface MarketOverviewView {
+  mode: string;
+  generatedAt: string;
+  maxAgeSeconds: number;
+  snapshot: Evidence | null;
+  ageSeconds: number | null;
+  freshness: "fresh" | "stale" | "unknown";
+  latestAttempt: null | {
+    status: "FETCHING" | "COMPLETED" | "FAILED";
+    startedAt: string;
+    completedAt: string | null;
+    evidenceId: string | null;
+    failure: null | { code: string; message: string };
+  };
+}
 
 function saveModelCall(purpose: "decision" | "chat", audit: ModelAudit, runId?: string, messageId?: string): void {
   db.prepare("INSERT INTO model_calls (id, purpose, run_id, message_id, provider, model, prompt_version, input_hash, request_json, response_json, generation_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -99,24 +204,15 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
   const clock = dependencies.now ?? (() => new Date());
   let stage = "FETCHING";
   try {
-    const savedEvidence = db.prepare("SELECT payload_json FROM evidence WHERE run_id=? AND purpose='decision' ORDER BY retrieved_at LIMIT 1").get(runId) as { payload_json: string } | undefined;
-    let evidence: Evidence;
-    if (savedEvidence) {
-      evidence = JSON.parse(savedEvidence.payload_json) as Evidence;
-      db.prepare("UPDATE runs SET status='ANALYZING', updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
-        .run(clock().toISOString(), runId);
-    } else {
-      evidence = await callResearchWithBudget(dependencies.research, "analyze_token", { symbol }, sessionId, "decision");
-      transaction(() => {
-        db.prepare("INSERT INTO evidence (id, run_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'decision', ?, ?, ?, ?, ?, ?, ?)")
-          .run(evidence.id, runId, evidence.tool, symbol, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
-        db.prepare("UPDATE runs SET status='ANALYZING', updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
-          .run(clock().toISOString(), runId);
-      });
-    }
+    const evidence = await collectDecisionEvidence(runId, symbol, sessionId, dependencies, clock);
+    db.prepare("UPDATE runs SET status='ANALYZING', updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
+      .run(clock().toISOString(), runId);
 
     stage = "ANALYZING";
-    const price = evidencePriceUsd(evidence);
+    const tokenEvidence = primaryTokenEvidence(evidence);
+    const deepEvidence = evidence.find((item) => item.tool === "deep_analysis");
+    if (!tokenEvidence || !deepEvidence) throw Object.assign(new Error("The decision research plan is incomplete"), { code: "RESEARCH_PLAN_INCOMPLETE", retryable: true });
+    const price = evidencePriceUsd(tokenEvidence);
     if (price === null) throw Object.assign(new Error("Evidence has no valid USD price"), { code: "EVIDENCE_PRICE_MISSING", retryable: false });
     const priceCents = BigInt(Math.round(price * 100));
     const savedDecision = db.prepare("SELECT id, payload_json, policy_input_json FROM decisions WHERE run_id=?").get(runId) as { id: string; payload_json: string; policy_input_json: string | null } | undefined;
@@ -138,7 +234,7 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
       const positionValue = priceCents * quantity / 1_000_000n;
       const invocation = await callModelWithBudget(sessionId, "decision", () => dependencies.model.createDecision({
         symbol,
-        evidence: [evidence],
+        evidence,
         portfolio: {
           cashUsd: centsToUsd(cash),
           positionQuantity: quantityToString(quantity),
@@ -148,7 +244,9 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
       decision = invocation.output;
       decisionId = randomUUID();
       policyInput = {
-        referencePriceCents: priceCents.toString(), evidenceAsOf: evidence.asOf, portfolioVersion: snapshotPortfolio.version,
+        researchPlanVersion: DECISION_RESEARCH_PLAN_VERSION,
+        criticalEvidence: { analyzeTokenId: tokenEvidence.id, deepAnalysisId: deepEvidence.id, deepAnalysisStatus: deepEvidence.status },
+        referencePriceCents: priceCents.toString(), evidenceAsOf: tokenEvidence.asOf, portfolioVersion: snapshotPortfolio.version,
         portfolio: {
           cashCents: cash.toString(), equityCents: (cash + positionValue).toString(), positionQuantityMicros: quantity.toString(),
           positionValueCents: positionValue.toString(), positionCostBasisCents: String(snapshotHolding?.cost_basis_cents ?? 0),
@@ -193,6 +291,8 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
       };
       const simulation = decision.action !== "HOLD" && priceIsStale
         ? { outcome: "BLOCKED_STALE_PRICE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `Evidence price exceeded the ${policyInput.simulation.maxPriceAgeSeconds}-second execution freshness limit` }
+        : decision.action !== "HOLD" && policyInput.criticalEvidence !== undefined && policyInput.criticalEvidence.deepAnalysisStatus !== "ok"
+          ? { outcome: "BLOCKED_SAFETY_COVERAGE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "Deep-analysis risk coverage was not complete enough to apply a paper trade" }
         : decision.action !== "HOLD" && portfolioChanged
           ? { outcome: "BLOCKED_PORTFOLIO_CHANGED", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "The paper portfolio changed after analysis; start a new run for current sizing" }
           : simulateDecision(decision.action, referencePriceCents, portfolioState, savedSimulationConfig);
@@ -246,6 +346,8 @@ export function replayRun(runId: string, sessionId?: string) {
   const referencePriceCents = BigInt(input.referencePriceCents);
   const replayed = row.action !== "HOLD" && stale
     ? { outcome: "BLOCKED_STALE_PRICE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `Evidence price exceeded the ${input.simulation.maxPriceAgeSeconds}-second execution freshness limit` }
+    : row.action !== "HOLD" && input.criticalEvidence?.deepAnalysisStatus !== undefined && input.criticalEvidence.deepAnalysisStatus !== "ok"
+      ? { outcome: "BLOCKED_SAFETY_COVERAGE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "Deep-analysis risk coverage was not complete enough to apply a paper trade" }
     : row.action !== "HOLD" && portfolioChanged
       ? { outcome: "BLOCKED_PORTFOLIO_CHANGED", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "The paper portfolio changed after analysis; start a new run for current sizing" }
       : simulateDecision(row.action, referencePriceCents, portfolioState, savedConfig);
@@ -279,12 +381,12 @@ export async function createRun(symbol: string, idempotencyKey: string, dependen
     if (!existing) {
       const runId = randomUUID();
       const createdAt = (dependencies.now ?? (() => new Date()))().toISOString();
-      db.prepare("INSERT INTO runs (id, session_id, portfolio_id, symbol, idempotency_key, input_hash, mode, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'FETCHING', ?, ?)")
-        .run(runId, sessionId, portfolioId, symbol, idempotencyKey, inputHash, config.DATA_MODE, createdAt, createdAt);
+      db.prepare("INSERT INTO runs (id, session_id, portfolio_id, symbol, idempotency_key, input_hash, mode, research_plan_version, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'FETCHING', ?, ?)")
+        .run(runId, sessionId, portfolioId, symbol, idempotencyKey, inputHash, config.DATA_MODE, DECISION_RESEARCH_PLAN_VERSION, createdAt, createdAt);
       existing = { id: runId, input_hash: inputHash, status: "FETCHING" };
     } else {
-      db.prepare("UPDATE runs SET attempt_count=attempt_count+1, updated_at=?, completed_at=NULL WHERE id=?")
-        .run((dependencies.now ?? (() => new Date()))().toISOString(), existing.id);
+      db.prepare("UPDATE runs SET attempt_count=attempt_count+1, research_plan_version=COALESCE(research_plan_version, ?), updated_at=?, completed_at=NULL WHERE id=?")
+        .run(DECISION_RESEARCH_PLAN_VERSION, (dependencies.now ?? (() => new Date()))().toISOString(), existing.id);
     }
     return executeRun(existing.id, symbol, sessionId, portfolioId, dependencies);
   })();
@@ -297,12 +399,20 @@ export function getRun(id: string, sessionId = DEFAULT_SESSION_ID) {
   const row = db.prepare(`SELECT r.*, d.payload_json AS decision_json, f.action AS fill_action, f.outcome, f.quantity_micros, f.fill_price_cents, f.fee_cents, f.cash_delta_cents, f.reason
     FROM runs r LEFT JOIN decisions d ON d.run_id=r.id LEFT JOIN fills f ON f.decision_id=d.id WHERE r.id=? AND r.session_id=?`).get(id, sessionId) as any;
   if (!row) throw Object.assign(new Error("Run not found"), { status: 404 });
-  const evidenceRows = db.prepare("SELECT payload_json FROM evidence WHERE run_id=? ORDER BY retrieved_at").all(id) as Array<{ payload_json: string }>;
+  const evidenceRows = db.prepare("SELECT payload_json FROM evidence WHERE run_id=? ORDER BY retrieved_at, rowid").all(id) as Array<{ payload_json: string }>;
+  const researchRows = db.prepare("SELECT ordinal, role, tool, args_json, status, attempt_count, started_at, completed_at, evidence_id, provider_status, failure_code, failure_message FROM research_steps WHERE run_id=? ORDER BY ordinal").all(id) as any[];
   return {
-    id: row.id, symbol: row.symbol, mode: row.mode, status: row.status, createdAt: row.created_at, completedAt: row.completed_at,
+    id: row.id, symbol: row.symbol, mode: row.mode, researchPlanVersion: row.research_plan_version, status: row.status, createdAt: row.created_at, completedAt: row.completed_at,
     attemptCount: row.attempt_count, failure: row.failure_stage ? { stage: row.failure_stage, code: row.failure_code, message: row.failure_message } : null,
     decision: row.decision_json ? JSON.parse(row.decision_json) : null,
     simulation: row.outcome ? { action: row.fill_action, outcome: row.outcome, quantity: quantityToString(BigInt(row.quantity_micros)), fillPriceUsd: centsToUsd(BigInt(row.fill_price_cents)), feeUsd: centsToUsd(BigInt(row.fee_cents)), cashDeltaUsd: centsToUsd(BigInt(row.cash_delta_cents)), reason: row.reason } : null,
+    researchTimeline: researchRows.map((item) => ({
+      ordinal: item.ordinal, role: item.role, tool: item.tool, args: JSON.parse(item.args_json), status: item.status,
+      attemptCount: item.attempt_count, startedAt: item.started_at, completedAt: item.completed_at,
+      durationMs: item.started_at && item.completed_at ? Math.max(0, Date.parse(item.completed_at) - Date.parse(item.started_at)) : null,
+      evidenceId: item.evidence_id, providerStatus: item.provider_status,
+      failure: item.failure_code ? { code: item.failure_code, message: item.failure_message } : null,
+    })),
     evidence: evidenceRows.map((item) => JSON.parse(item.payload_json)),
   };
 }
@@ -336,7 +446,7 @@ function evidenceWindow(evidence: Evidence): string | null {
 
 function latestMark(symbol: string, sessionId: string, mode: string, valuedAt: Date) {
   const rows = db.prepare(`SELECT e.payload_json FROM evidence e JOIN runs r ON r.id=e.run_id
-    WHERE r.session_id=? AND r.mode=? AND r.symbol=? AND e.purpose='decision' AND e.status IN ('ok', 'partial')
+    WHERE r.session_id=? AND r.mode=? AND r.symbol=? AND e.purpose='decision' AND e.tool='analyze_token' AND e.status IN ('ok', 'partial')
     ORDER BY e.as_of DESC, e.retrieved_at DESC, e.rowid DESC LIMIT 20`).all(sessionId, mode, symbol) as Array<{ payload_json: string }>;
   for (const row of rows) {
     const evidence = JSON.parse(row.payload_json) as Evidence;
@@ -391,8 +501,8 @@ export function portfolio(sessionId = DEFAULT_SESSION_ID, valuedAt = new Date())
 
 function comparisonForRuns(current: ReturnType<typeof getRun>, previous: ReturnType<typeof getRun> | null) {
   if (!previous) return { status: "unavailable" as const, reason: "No previous comparable run exists for this asset and data mode.", previousRunId: null };
-  const currentEvidence = current.evidence[0] as Evidence | undefined;
-  const previousEvidence = previous.evidence[0] as Evidence | undefined;
+  const currentEvidence = primaryTokenEvidence(current.evidence as Evidence[]);
+  const previousEvidence = primaryTokenEvidence(previous.evidence as Evidence[]);
   if (!currentEvidence || !previousEvidence) return { status: "unavailable" as const, reason: "One of the runs has no saved decision evidence.", previousRunId: previous.id };
   const currentNetwork = identityField(currentEvidence.data, ["network", "chain"]);
   const previousNetwork = identityField(previousEvidence.data, ["network", "chain"]);
@@ -441,8 +551,70 @@ export function dashboardSummary(symbol: string, sessionId = DEFAULT_SESSION_ID,
   };
 }
 
-export async function market(sessionId = DEFAULT_SESSION_ID) {
-  return callResearchWithBudget(research, "scan_market", { top_n: 5 }, sessionId, "market");
+export function marketOverview(sessionId = DEFAULT_SESSION_ID, viewedAt = new Date()): MarketOverviewView {
+  touchSession(sessionId);
+  const snapshotRow = db.prepare(`SELECT e.payload_json FROM market_overview_attempts a
+    JOIN evidence e ON e.id=a.evidence_id
+    WHERE a.session_id=? AND a.mode=? AND a.status='COMPLETED'
+    ORDER BY a.started_at DESC, a.rowid DESC LIMIT 1`).get(sessionId, config.DATA_MODE) as { payload_json: string } | undefined;
+  const attempt = db.prepare(`SELECT status, started_at, completed_at, evidence_id, failure_code, failure_message
+    FROM market_overview_attempts WHERE session_id=? AND mode=? ORDER BY started_at DESC, rowid DESC LIMIT 1`)
+    .get(sessionId, config.DATA_MODE) as any;
+  const snapshot = snapshotRow ? JSON.parse(snapshotRow.payload_json) as Evidence : null;
+  const elapsedMs = snapshot ? viewedAt.getTime() - Date.parse(snapshot.asOf) : Number.NaN;
+  const ageSeconds = Number.isFinite(elapsedMs) && elapsedMs >= -5_000 ? Math.max(0, Math.floor(elapsedMs / 1_000)) : null;
+  return {
+    mode: config.DATA_MODE,
+    generatedAt: viewedAt.toISOString(),
+    maxAgeSeconds: config.MARKET_OVERVIEW_MAX_AGE_SECONDS,
+    snapshot,
+    ageSeconds,
+    freshness: snapshot && ageSeconds !== null ? ageSeconds <= config.MARKET_OVERVIEW_MAX_AGE_SECONDS ? "fresh" : "stale" : "unknown",
+    latestAttempt: attempt ? {
+      status: attempt.status,
+      startedAt: attempt.started_at,
+      completedAt: attempt.completed_at,
+      evidenceId: attempt.evidence_id,
+      failure: attempt.failure_code ? { code: attempt.failure_code, message: attempt.failure_message } : null,
+    } : null,
+  };
+}
+
+export async function refreshMarketOverview(
+  sessionId = DEFAULT_SESSION_ID,
+  dependencies: { research: ResearchAdapter; now?: () => Date } = { research },
+): Promise<MarketOverviewView> {
+  const activeKey = `${sessionId}:${config.DATA_MODE}`;
+  const active = activeMarketOverviews.get(activeKey);
+  if (active) return active;
+  const work = (async () => {
+    touchSession(sessionId);
+    const clock = dependencies.now ?? (() => new Date());
+    const attemptId = randomUUID();
+    db.prepare("INSERT INTO market_overview_attempts (id, session_id, mode, status, started_at) VALUES (?, ?, ?, 'FETCHING', ?)")
+      .run(attemptId, sessionId, config.DATA_MODE, clock().toISOString());
+    try {
+      const evidence = await callResearchWithBudget(dependencies.research, "market_overview", {}, sessionId, "market");
+      if (evidence.tool !== "market_overview") {
+        throw Object.assign(new Error(`RYO returned ${evidence.tool} while market_overview was requested`), { code: "RYO_TOOL_MISMATCH", retryable: false });
+      }
+      transaction(() => {
+        db.prepare("INSERT INTO evidence (id, session_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'market', ?, NULL, ?, ?, ?, ?, ?)")
+          .run(evidence.id, sessionId, evidence.tool, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
+        db.prepare("UPDATE market_overview_attempts SET status='COMPLETED', completed_at=?, evidence_id=?, failure_code=NULL, failure_message=NULL WHERE id=?")
+          .run(clock().toISOString(), evidence.id, attemptId);
+      });
+      return marketOverview(sessionId, clock());
+    } catch (error) {
+      const value = error as Error & { code?: string };
+      db.prepare("UPDATE market_overview_attempts SET status='FAILED', completed_at=?, failure_code=?, failure_message=? WHERE id=?")
+        .run(clock().toISOString(), value.code ?? "RYO_REQUEST_FAILED", value.message.slice(0, 1_000), attemptId);
+      throw error;
+    }
+  })();
+  activeMarketOverviews.set(activeKey, work);
+  try { return await work; }
+  finally { activeMarketOverviews.delete(activeKey); }
 }
 
 export function createConversation(symbol?: string, sessionId = DEFAULT_SESSION_ID) {

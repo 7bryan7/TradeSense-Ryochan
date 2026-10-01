@@ -1,4 +1,4 @@
-import { BarChart3, Bot, BrainCircuit, History, LayoutDashboard, Menu, MessageSquare, Settings, Wallet, X } from "lucide-react";
+import { Bot, BrainCircuit, History, Keyboard, LayoutDashboard, Menu, MessageSquare, Settings, Wallet, X } from "lucide-react";
 import type { Health, Portfolio, ViewName } from "../types";
 
 const nav: Array<{ view: ViewName; label: string; icon: typeof LayoutDashboard }> = [
@@ -9,17 +9,23 @@ const nav: Array<{ view: ViewName; label: string; icon: typeof LayoutDashboard }
   { view: "history", label: "Decision history", icon: History },
 ];
 
-export function StudioShell({ children, view, onView, portfolio, health, mobileOpen, setMobileOpen }: {
-  children: React.ReactNode; view: ViewName; onView: (view: ViewName) => void; portfolio: Portfolio | null; health: Health | null;
-  mobileOpen: boolean; setMobileOpen: (open: boolean) => void;
+export function StudioShell({ children, view, onView, viewHref, onShortcuts, portfolio, health, mobileOpen, setMobileOpen }: {
+  children: React.ReactNode; view: ViewName; onView: (view: ViewName) => void; viewHref: (view: ViewName) => string; portfolio: Portfolio | null; health: Health | null;
+  onShortcuts: () => void; mobileOpen: boolean; setMobileOpen: (open: boolean) => void;
 }) {
+  const followViewLink = (event: React.MouseEvent<HTMLAnchorElement>, nextView: ViewName) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    onView(nextView);
+    setMobileOpen(false);
+  };
   const navigation = <>
-    <button className="brand brand-button" onClick={() => onView("dashboard")}><span className="brand-mark">TS</span><span>TradeSense<small>RESEARCH WORKSPACE</small></span></button>
+    <a className="brand brand-button" href={viewHref("dashboard")} onClick={(event) => followViewLink(event, "dashboard")}><span className="brand-mark">TS</span><span>TradeSense<small>RESEARCH WORKSPACE</small></span></a>
     <nav className="studio-nav" aria-label="Main navigation">
       <p>WORKSPACE</p>
-      {nav.slice(0, 3).map(({ view: item, label, icon: Icon }) => <button key={item} className={view === item ? "nav-item active" : "nav-item"} onClick={() => { onView(item); setMobileOpen(false); }}><Icon size={18} /><span>{label}</span>{item === "chat" && <small>AI</small>}</button>)}
+      {nav.slice(0, 3).map(({ view: item, label, icon: Icon }) => <a key={item} href={viewHref(item)} aria-current={view === item ? "page" : undefined} className={view === item ? "nav-item active" : "nav-item"} onClick={(event) => followViewLink(event, item)}><Icon size={18} /><span>{label}</span>{item === "chat" && <small>AI</small>}</a>)}
       <p>YOUR RECORDS</p>
-      {nav.slice(3).map(({ view: item, label, icon: Icon }) => <button key={item} className={view === item ? "nav-item active" : "nav-item"} onClick={() => { onView(item); setMobileOpen(false); }}><Icon size={18} /><span>{label}</span></button>)}
+      {nav.slice(3).map(({ view: item, label, icon: Icon }) => <a key={item} href={viewHref(item)} aria-current={view === item ? "page" : undefined} className={view === item ? "nav-item active" : "nav-item"} onClick={(event) => followViewLink(event, item)}><Icon size={18} /><span>{label}</span></a>)}
     </nav>
     <div className="sidebar-bottom">
       <div className="explore-card"><small>ROOM TO EXPLORE</small><strong>Real curiosity.<br />Virtual money.</strong><p>Explore evidence and practice decisions without placing a real trade.</p></div>
@@ -36,18 +42,14 @@ export function StudioShell({ children, view, onView, portfolio, health, mobileO
       <header className="topbar">
         <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu /></button>
         <div><p>Hi, Demo trader!</p><span>Evidence-linked paper research</span></div>
-        <div className="topbar-status"><span className={`mode-badge ${portfolio?.mode ?? "loading"}`}><i />{portfolio?.mode?.toUpperCase() ?? "LOADING"}</span><span className="worker-pill">{health?.schedulerEnabled ? "WORKER ON" : "WORKER OFF"}</span></div>
+        <div className="topbar-status"><button type="button" className="icon-button shortcut-button" onClick={onShortcuts} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"><Keyboard /><span className="sr-only">Keyboard shortcuts</span></button><span className={`mode-badge ${portfolio?.mode ?? "loading"}`}><i />{portfolio?.mode?.toUpperCase() ?? "LOADING"}</span><span className="worker-pill">{health?.schedulerEnabled ? "WORKER ON" : "WORKER OFF"}</span></div>
       </header>
       <main id="workspace-main" tabIndex={-1} className="workspace-main">{children}</main>
-      <nav className="mobile-bottom" aria-label="Mobile navigation">{nav.slice(0, 5).map(({ view: item, label, icon: Icon }) => <button key={item} className={view === item ? "active" : ""} onClick={() => onView(item)}><Icon /><span>{label.split(" ")[0]}</span></button>)}</nav>
+      <nav className="mobile-bottom" aria-label="Mobile navigation">{nav.slice(0, 5).map(({ view: item, label, icon: Icon }) => <a key={item} href={viewHref(item)} aria-current={view === item ? "page" : undefined} className={view === item ? "active" : ""} onClick={(event) => followViewLink(event, item)}><Icon /><span>{label.split(" ")[0]}</span></a>)}</nav>
     </div>
   </div>;
 }
 
 export function PageIntro({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children?: React.ReactNode }) {
   return <header className="page-intro"><div><p className="eyebrow">{eyebrow}</p><h1>{title}<span>.</span></h1><p>{description}</p></div>{children && <div className="page-actions">{children}</div>}</header>;
-}
-
-export function EmptyPanel({ icon: Icon = BarChart3, title, text }: { icon?: typeof BarChart3; title: string; text: string }) {
-  return <div className="empty-panel"><span><Icon /></span><h3>{title}</h3><p>{text}</p></div>;
 }

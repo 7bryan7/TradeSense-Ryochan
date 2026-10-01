@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { FixtureModelAdapter, type ResearchAdapter } from "@tradesense/adapters";
+import { FixtureModelAdapter, FixtureResearchAdapter, type ResearchAdapter } from "@tradesense/adapters";
 import type { Evidence } from "@tradesense/core";
 
 const databasePath = `/tmp/tradesense-dashboard-${process.pid}-${randomUUID()}.sqlite`;
@@ -23,6 +23,11 @@ function snapshot(price: number, change24h: number, at: Date): Evidence {
   };
 }
 
+function pipelineResearch(primary: Evidence): ResearchAdapter {
+  const fixture = new FixtureResearchAdapter();
+  return { call: (tool, args) => tool === "analyze_token" ? Promise.resolve(primary) : fixture.call(tool, args) };
+}
+
 describe("owned dashboard summary", () => {
   beforeAll(() => database.migrate());
 
@@ -36,8 +41,8 @@ describe("owned dashboard summary", () => {
     const model = new FixtureModelAdapter();
     const firstAt = new Date("2026-09-26T12:00:00.000Z");
     const secondAt = new Date("2026-09-26T12:00:30.000Z");
-    const firstResearch: ResearchAdapter = { call: async () => snapshot(100, 3, firstAt) };
-    const secondResearch: ResearchAdapter = { call: async () => snapshot(110, 5, secondAt) };
+    const firstResearch = pipelineResearch(snapshot(100, 3, firstAt));
+    const secondResearch = pipelineResearch(snapshot(110, 5, secondAt));
 
     await services.createRun("SOL", randomUUID(), { research: firstResearch, model, now: () => firstAt }, sessionId);
     const latest = await services.createRun("SOL", randomUUID(), { research: secondResearch, model, now: () => secondAt }, sessionId);
