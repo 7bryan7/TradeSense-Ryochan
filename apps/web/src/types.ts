@@ -20,6 +20,7 @@ export type Evidence = {
   data: Record<string, unknown>;
   summary: { headline: string; keyPoints?: string[] };
   warnings: string[];
+  purpose?: string;
 };
 
 export type ResearchTimelineStep = {
@@ -48,7 +49,11 @@ export type Run = {
   attemptCount: number;
   failure: null | { stage: string; code: string; message: string };
   decision: Decision | null;
-  simulation: null | { action: string; outcome: string; quantity: string; fillPriceUsd: string; feeUsd: string; cashDeltaUsd: string; reason: string };
+  simulation: null | {
+    action: string; outcome: string; quantity: string; fillPriceUsd: string; feeUsd: string; cashDeltaUsd: string; reason: string;
+    decisionReference: null | { evidenceId: string | null; priceUsd: string; asOf: string };
+    executionQuote: null | { evidenceId: string; referencePriceUsd: string; asOf: string; retrievedAt: string };
+  };
   researchTimeline: ResearchTimelineStep[];
   evidence: Evidence[];
 };
@@ -71,6 +76,7 @@ export type ReplayResult = {
 };
 
 export type Portfolio = {
+  id: string;
   cashUsd: string;
   realizedPnlUsd: string;
   mode: string;
@@ -101,7 +107,14 @@ export type DashboardSummary = {
   latestRun: Run | null;
   comparison: DashboardComparison;
   portfolio: Portfolio;
-  chart: { status: "unavailable"; reason: string };
+  chart: MarketChart;
+};
+
+export type MarketChartPoint = { timestamp: string; open: number | null; high: number | null; low: number | null; close: number; volume: number | null };
+export type MarketChart = { status: "unavailable"; reason: string } | {
+  status: "available"; evidenceId: string; symbol: string; currency: string; volumeUnit: string | null;
+  intervalSeconds: number; windowSeconds: number; sourcePath: string; dataMode: string; asOf: string; retrievedAt: string;
+  points: MarketChartPoint[]; volumeCoverage: "complete" | "partial" | "unavailable";
 };
 
 export type MarketOverview = {
@@ -134,8 +147,21 @@ export type Schedule = {
   latestSlot: null | { symbol: string; slotAt: string; status: string; runId: string | null; errorMessage: string | null };
 };
 
-export type Health = { status: string; mode: string; trading: string; schedulerEnabled: boolean };
-export type ChatSource = { evidenceId: string; kind: "ryo" | "web"; title: string; url?: string; publishedAt?: string | null; retrievedAt: string };
-export type ChatMessage = { id: string; role: string; text: string; symbol?: string | null; runId?: string | null; status: string; citations: string[]; sources: ChatSource[]; attemptCount?: number; failure?: null | { stage: string; code: string; message: string }; createdAt?: string; updatedAt?: string };
+export type Health = { status: string; mode: "live"; defaultMode: "live"; availableModes: Array<"live">; trading: string; schedulerEnabled: boolean; policy: { initialCashUsd: number; feeBps: number; slippageBps: number; maxBuyEquityBps: number; maxTokenExposureBps: number; maxPriceAgeSeconds: number } };
+export type ChatSource = { evidenceId: string; kind: "ryo" | "web"; title: string; url?: string; publishedAt?: string | null; retrievedAt: string; dataMode: string };
+export type ChatEvidenceClaim = { text: string; evidenceIds: string[] };
+export type ChatDerivation = ChatEvidenceClaim & { method: string; inputs: string[] };
+export type ChatClassification = { observedFacts: ChatEvidenceClaim[]; derivedCalculations: ChatDerivation[]; interpretations: ChatEvidenceClaim[] };
+export type ChatMessage = { id: string; role: string; text: string; symbol?: string | null; runId?: string | null; status: string; citations: string[]; classification: ChatClassification | null; sources: ChatSource[]; integrityWarning?: string | null; attemptCount?: number; failure?: null | { stage: string; code: string; message: string }; createdAt?: string; updatedAt?: string };
 export type Chat = { id: string; mode: string; symbol: string | null; messages: ChatMessage[] };
+export type ConversationSummary = {
+  id: string;
+  mode: string;
+  symbol: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  title: string;
+  latestMessage: null | { role: string; text: string; status: string };
+};
 export type ViewName = "dashboard" | "analysis" | "chat" | "portfolio" | "history";

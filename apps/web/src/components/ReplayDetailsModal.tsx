@@ -1,4 +1,6 @@
 import { CheckCircle2, Database, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
+import { prettyOutcome } from "../api";
+import { formatDateTime } from "../format";
 import type { Replay, ReplayResult, Run } from "../types";
 import { Modal, StatePanel, StatusBadge } from "./UiPrimitives";
 
@@ -18,7 +20,7 @@ function cents(value: string) {
 
 function ReplayColumn({ title, result, matches }: { title: string; result: ReplayResult; matches?: boolean }) {
   return <section className="replay-result">
-    <header><div><small>{title}</small><StatusBadge value={result.outcome} /></div>{matches && <CheckCircle2 aria-label="Matches saved result" />}</header>
+    <header><div><small>{title}</small><StatusBadge value={result.outcome} label={prettyOutcome(result.outcome)} /></div>{matches && <CheckCircle2 aria-label="Matches saved result" />}</header>
     <dl>
       <div><dt>Quantity</dt><dd>{scaled(result.quantityMicros, 6)}</dd></div>
       <div><dt>Fill price</dt><dd>{cents(result.fillPriceCents)}</dd></div>
@@ -45,7 +47,7 @@ export function ReplayDetailsModal({ open, onClose, run, replay, loading, error,
         <span><small>REPLAY VERDICT</small><strong>{replay.matches ? "Saved and recomputed results match" : "Mismatch requires review"}</strong><p>{replay.portfolioMutated ? "Unexpected portfolio mutation was reported." : "Read-only verification · the paper portfolio was not changed."}</p></span>
       </div>
       <div className="replay-grid"><ReplayColumn title="SAVED RESULT" result={replay.saved} /><ReplayColumn title="RECOMPUTED RESULT" result={replay.replayed} matches={replay.matches} /></div>
-      <div className="replay-meta"><span><Database /> Run {run.id}</span><span>{run.symbol} · {run.decision?.action ?? run.status}</span><span>{new Date(run.createdAt).toLocaleString()}</span></div>
+      <div className="replay-meta"><span><Database /> Run {run.id}</span><span>{run.symbol} · {run.decision?.action ?? run.status}</span><span>{formatDateTime(run.createdAt)}</span></div>
     </div>}
   </Modal>;
 }

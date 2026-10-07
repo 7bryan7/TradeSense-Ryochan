@@ -7,7 +7,7 @@ const workspaceRoot = resolve(import.meta.dirname, "../../..");
 loadEnv({ path: resolve(workspaceRoot, ".env"), quiet: true });
 
 const envSchema = z.object({
-  DATA_MODE: dataModeSchema.default("fixture"),
+  DATA_MODE: dataModeSchema.default("live"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   DATABASE_PATH: z.string().default("./data/tradesense.sqlite"),
@@ -19,7 +19,7 @@ const envSchema = z.object({
   TAVILY_MAX_RESULTS: z.coerce.number().int().min(1).max(5).default(5),
   TAVILY_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(15_000),
   TAVILY_MONTHLY_CREDIT_CAP: z.coerce.number().int().min(1).default(1000),
-  LLM_PROVIDER: z.enum(["fixture", "gemini"]).default("fixture"),
+  LLM_PROVIDER: z.literal("gemini").default("gemini"),
   LLM_MODEL: z.string().default("gemini-3.5-flash-lite"),
   LLM_API_KEY: z.string().default(""),
   SIM_INITIAL_CASH: z.coerce.number().positive().default(10_000),
@@ -41,9 +41,6 @@ const envSchema = z.object({
 });
 
 const parsed = envSchema.parse(process.env);
-if (parsed.DATA_MODE === "live" && !parsed.RYO_MCP_KEY) throw new Error("RYO_MCP_KEY is required in live mode");
-if (parsed.LLM_PROVIDER === "gemini" && !parsed.LLM_API_KEY) throw new Error("LLM_API_KEY is required when LLM_PROVIDER=gemini");
-if (parsed.DATA_MODE === "live" && parsed.LLM_PROVIDER !== "gemini") throw new Error("Live mode requires the Gemini model adapter");
 
 export const config = {
   ...parsed,

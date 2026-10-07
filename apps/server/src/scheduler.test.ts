@@ -5,8 +5,8 @@ import type { ModelAdapter, ResearchAdapter } from "@tradesense/adapters";
 import type { Evidence } from "@tradesense/core";
 
 const databasePath = `/tmp/tradesense-scheduler-${process.pid}-${randomUUID()}.sqlite`;
-process.env.DATA_MODE = "fixture";
-process.env.LLM_PROVIDER = "fixture";
+process.env.DATA_MODE = "live";
+process.env.LLM_PROVIDER = "gemini";
 process.env.LLM_API_KEY = "";
 process.env.RYO_MCP_KEY = "";
 process.env.DATABASE_PATH = databasePath;
@@ -14,7 +14,7 @@ process.env.SCHEDULER_ENABLED = "false";
 process.env.SCHEDULER_LEASE_SECONDS = "120";
 
 const [{ FixtureModelAdapter, FixtureResearchAdapter }, database, scheduler, services] = await Promise.all([
-  import("@tradesense/adapters"),
+  import("../../../tests/support/providers.js"),
   import("./db.js"),
   import("./scheduler.js"),
   import("./services.js"),
@@ -30,7 +30,7 @@ const research: ResearchAdapter = {
     const symbol = String(args.symbol ?? "BTC");
     const timestamp = clock.toISOString();
     return {
-      id: randomUUID(), tool: "analyze_token", symbol, status: "ok", dataMode: "fixture", asOf: timestamp, retrievedAt: timestamp,
+      id: randomUUID(), tool: "analyze_token", symbol, status: "ok", dataMode: "live", asOf: timestamp, retrievedAt: timestamp,
       data: { symbol, price: symbol === "ETH" ? 3_450 : 64_250, change24h: 2.8, rsi14: 58 },
       summary: { headline: `${symbol} fixture schedule evidence`, keyPoints: [] }, warnings: [],
     };

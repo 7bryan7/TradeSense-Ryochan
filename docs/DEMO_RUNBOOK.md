@@ -1,116 +1,38 @@
-# TradeSense demo and failure runbook
+# TradeSense live-only demo runbook
 
-Verified on September 26, 2026. This runbook uses fixture data by default. Fixture evidence is synthetic, every fill is simulated, and no wallet or exchange account is connected.
+Updated October 7, 2026. All application research uses RYO live evidence and Gemini. No fixture selector, synthetic chart, fixed AI model, or fake sign-in is available. All trading remains a virtual paper simulation.
 
-## Clean setup
+## Local setup
 
-Requirements: Node.js 22.13 or newer, npm, and Chrome for the Playwright journey.
+1. Run `npm ci`.
+2. Configure `.env` with `DATA_MODE=live`, `LLM_PROVIDER=gemini`, `RYO_MCP_KEY`, `LLM_API_KEY`, and `VITE_GOOGLE_CLIENT_ID`. Never put provider secrets in `VITE_*` variables.
+3. Configure the Google web client for `http://localhost:3000`.
+4. Optionally configure `TAVILY_API_KEY` for supplementary chat web searches.
+5. Run `npm run doctor`, then `npm run dev`.
+6. Open `http://localhost:3000` and sign in with Google.
 
-```bash
-npm ci
-npm run doctor
-npm run typecheck
-npm run lint
-npm test
-npm run build
-npm run test:e2e
-```
+Missing provider keys leave the application available, but research returns an explicit “missing data” error. Google entry still depends on its client ID. The Google profile is a frontend gate; production backend authentication is not implemented.
 
-With no `.env`, `doctor` must report `mode: fixture`, `llmProvider: fixture`, `schedulerEnabled: false`, and `trading: simulated-only`. The automated tests must not contact RYO, Gemini, or Tavily.
+## Walkthrough
 
-For a local fixture demo on ports 3000 and 4000, either temporarily move the local `.env` out of the repository or override its live settings:
+- The landing workflow explains the product without invented telemetry. Its data panel says “missing data” until research is available in the workspace.
+- Fetch a market overview explicitly, then inspect coverage, source time and warnings.
+- Select a token and request analysis. RYO research, Gemini reasoning and a refreshed BUY/SELL quote can consume quota.
+- Inspect the saved explanation, evidence timeline and paper outcome. HOLD, no-fill and failed research remain distinct.
+- Inspect the chart only if RYO supplied a valid timestamped series. Otherwise it says “missing data”.
+- Ask a market question in chat. Tavily is used only for additional web context when required.
+- Verify replay against a completed saved paper decision. It never calls providers or creates another fill.
 
-```bash
-DATA_MODE=fixture LLM_PROVIDER=fixture LLM_API_KEY= RYO_MCP_KEY= TAVILY_API_KEY= SCHEDULER_ENABLED=true npm run dev
-```
+Do not describe stored live-source observations as current without checking their timestamps. Do not claim missing safety coverage is safe. Old non-live records stay preserved but cannot appear in live views or run through the scheduler.
 
-Open `http://localhost:3000`. Enabling the fixture scheduler only demonstrates its controls and durable slots. New schedules still begin paused, and their minimum cadence is five minutes.
+## Offline verification
 
-## Three-minute demo
+Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and `npm run test:e2e`.
 
-### 0:00–0:25 — Scope and safety
+Unit tests inject providers from `tests/support`; these are excluded from production builds. A test setup clears provider credentials and blocks network fetches. The browser check starts an isolated database with empty provider keys, stubs Google only inside Playwright, and verifies missing-data behavior. It does not prove real Google or live market access.
 
-- Start on the landing page and choose **Enter demo workspace**. Point out that this is instant prototype access with no Google account or OAuth flow.
-- Point to `FIXTURE`, `PAPER ONLY`, and “No wallet. No real funds. All fills are simulated.”
-- Describe the flow: RYO-style evidence → validated agent decision → deterministic paper policy → explainable dashboard and chat.
-- State that fixture mode proves product behavior; it is not presented as live market research.
+## Live verification gate
 
-### 0:25–1:10 — Evidence to paper decision
+A complete post-recovery live run remains a separate verification gate: four saved RYO research calls, schema-valid Gemini output, a separately saved fresh execution quote for BUY/SELL, and a deterministic paper outcome. No offline test establishes this. Respect provider budgets and the RYO fan-out quota. Missing, non-live, invalid, stale or critically incomplete evidence must not produce a fabricated fill.
 
-1. Keep `SOL` selected and choose **Analyze & simulate**.
-2. Show the token/mode, evidence age, proposed action and confidence, and actual simulation outcome together.
-3. Open **AI reasoning** from the sidebar. Call out the source/retrieval timestamps, fixture warning, strongest risk, missing data, and contrary evidence.
-4. Run SOL a second time and show the compatibility-checked price, 24-hour movement, decision, and simulation deltas. Explain that incompatible identity, mode, or metric windows are blocked rather than compared.
-5. Show virtual cash, total paper equity, realized/unrealized P&amp;L, mark time, and valuation completeness. Explain that missing marks produce a partial or unavailable valuation. Sizing, fees, slippage, freshness, and exposure checks remain deterministic server policy; the model cannot write the ledger.
-
-Expected fixture result: a completed SOL `BUY`, an `APPLIED` simulated outcome, and a replay result of “Verified — saved result matches.” Exact timestamps, IDs, quantities, and balances vary with the session.
-
-### 1:10–1:50 — Audit and recovery
-
-- Open **Decision history**, select the run, and show that its evidence, decision, simulation, and replay use one saved snapshot.
-- Explain that replay performs no provider call and does not mutate the portfolio.
-- Refresh the page and show that the owned run, balance, and conversation persist.
-
-### 1:50–2:25 — Research chat
-
-1. Open **Ask TradeSense** and ask: `Why this decision?`
-2. Show the response grounded in the saved SOL decision and evidence.
-3. Compare the paper cash before and after the question to demonstrate that chat cannot create even a simulated fill.
-
-Tavily is reserved for chat questions that require current public web context. Do not use a news question in the fixture demo: it would either be unavailable without a key or consume a live Tavily credit when configured.
-
-### 2:25–3:00 — Autonomous scans and limits
-
-1. Add the five-minute SOL schedule; show that it starts `PAUSED`.
-2. Resume it, point out the next slot and daily cap, then pause it again.
-3. Explain that the worker uses unique token/time slots, leases, one portfolio job at a time, and a cancellation check inside the ledger transaction.
-4. Close with the current limitation: the reference-informed UI is connected to the real application state, while historical charts remain unavailable until the backend persists timestamped candle data.
-
-## Failure demonstrations
-
-Use these checks when a judge asks what happens when a provider or policy boundary fails. Do not repeatedly call a degraded live provider during the fixture demo.
-
-| Scenario | Reproducible check | Expected behavior |
-|---|---|---|
-| RYO market data unavailable | Refer to the September 24 SOL/ETH diagnostics in `HISTORY.md`; only rerun `npm run smoke:live` after RYO recovery and with authorization | Run stops during `FETCHING`; error remains explicit; no model call, decision, or fill is created |
-| Gemini fails after research | `npm test -- apps/server/src/run-lifecycle.test.ts -t "resumes from saved evidence"` | Run records `ANALYZING` failure; retry with the same key reuses evidence and cannot duplicate a fill |
-| Price becomes stale | `npm test -- apps/server/src/run-lifecycle.test.ts -t "stale"` | Decision is preserved, simulation becomes `BLOCKED_STALE_PRICE`, and the ledger is unchanged |
-| Portfolio changes before application | `npm test -- apps/server/src/run-lifecycle.test.ts -t "portfolio"` | Simulation becomes `BLOCKED_PORTFOLIO_CHANGED`; a new analysis is required |
-| Schedule is paused near application | `npm test -- apps/server/src/scheduler.test.ts -t "pause win"` | Slot and run are cancelled before a fill; the portfolio remains unchanged |
-| Chat/model result is ambiguous after interruption | `npm test -- apps/server/src/chat-lifecycle.test.ts -t "ambiguous"` | API returns `CHAT_MODEL_OUTCOME_UNKNOWN` instead of issuing an untracked duplicate call |
-| Hosted usage limit reached | `npm test -- apps/server/src/limits.test.ts` | API returns a structured rate/cap error; no additional provider operation starts |
-
-The last verified RYO diagnostics showed a healthy MCP gateway, valid authentication, and unused rate limit while token/market observations were unavailable or partial. Describe this as degraded downstream market data. Do not describe it as a bad key, busy gateway, exhausted quota, or unlaunched service.
-
-## Live recovery gate
-
-After RYO reports recovery:
-
-1. Run `npm run doctor` and confirm keys are configured without printing them.
-2. Run one authorized `npm run smoke:live`. This performs one bounded RYO `analyze_token` request and does not call Gemini or mutate the ledger.
-3. Confirm identity, units, observation time, retrieval time, status, warnings, and a usable USD price.
-4. Start the app with the scheduler disabled and perform one selected-token analysis.
-5. Confirm the saved RYO evidence, schema-valid Gemini decision, deterministic simulation outcome, and replay match.
-6. Record the timestamp, token/network identity, provider/model IDs, result, trace ID if present, and any provider usage in `HISTORY.md`.
-
-Stop if evidence is unavailable, partial in a critical field, stale, ambiguously identified, or lacks a valid execution price. Never replace a failed live run with fixture evidence under a `LIVE` label.
-
-## Deployment preflight
-
-No deployment has been completed or selected. Before publishing:
-
-- use a persistent writable database volume and one SQLite writer, or migrate to a reviewed PostgreSQL design;
-- replace the browser UUID with authenticated server-issued sessions and secure cookies;
-- keep all provider keys server-side and configure the documented HTTP/provider caps;
-- keep `SCHEDULER_ENABLED=false` until a persistent worker and graceful termination are verified on the host;
-- verify HTTPS, origin policy, backups, restore procedure, logs without credentials, and health checks;
-- run the clean setup checks against the exact deployment commit;
-- add actual repository, app, and demo URLs only after they exist.
-
-## Claims supported today
-
-- Fixture evidence-to-decision-to-paper-simulation, replay, history, chat, and schedule controls pass the automated browser journey.
-- Paper accounting, recovery, ownership, usage caps, chat retention, scheduler leases, cancellation, and shutdown behavior pass offline tests.
-- One live RYO analysis, one one-credit Tavily search, and Gemini reasoning over saved combined evidence succeeded separately on September 24, 2026.
-- A complete current live RYO → Gemini → paper-decision run is not verified because later RYO market-data calls failed.
-- No real-money trading, wallet signing, exchange execution, deployment, production authentication, real candle feed, or predictive-performance claim exists.
+Deployment and production authentication remain separate work. SQLite requires durable storage; scheduling stays operator-gated and disabled by default.

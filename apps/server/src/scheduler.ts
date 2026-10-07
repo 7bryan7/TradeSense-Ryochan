@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { ModelAdapter, ResearchAdapter } from "@tradesense/adapters";
-import { tokenSymbolSchema } from "@tradesense/core";
+import { tokenSymbolSchema, type DataMode } from "@tradesense/core";
 import { config } from "./config.js";
 import { db, transaction } from "./db.js";
-import { createRun, model, research, touchSession } from "./services.js";
+import { createRun, runDependenciesForMode, touchSession } from "./services.js";
 
 export const createScheduleSchema = z.object({
   symbols: z.array(tokenSymbolSchema).min(1).max(3).transform((symbols) => [...new Set(symbols)]),
@@ -21,8 +21,8 @@ type ScheduleRow = {
 };
 
 export interface SchedulerDependencies {
-  research: ResearchAdapter;
-  model: ModelAdapter;
+  research?: ResearchAdapter;
+  model?: ModelAdapter;
   now?: () => Date;
   workerId?: string;
   maxJobs?: number;
@@ -39,33 +39,33 @@ function scheduleView(row: ScheduleRow) {
   };
 }
 
-function ownedSchedule(id: string, sessionId: string): ScheduleRow {
-  const row = db.prepare("SELECT * FROM schedules WHERE id=? AND session_id=?").get(id, sessionId) as ScheduleRow | undefined;
+function ownedSchedule(id: string, sessionId: string, mode: DataMode = "live"): ScheduleRow {
+  const row = db.prepare("SELECT * FROM schedules WHERE id=? AND session_id=? AND (? IS NULL OR mode=?)").get(id, sessionId, mode ?? null, mode ?? null) as ScheduleRow | undefined;
   if (!row) throw Object.assign(new Error("Schedule not found"), { status: 404 });
   return row;
 }
 
-export function listSchedules(sessionId: string) {
-  const rows = db.prepare("SELECT * FROM schedules WHERE session_id=? ORDER BY created_at DESC").all(sessionId) as ScheduleRow[];
+export function listSchedules(sessionId: string, mode: DataMode = config.DATA_MODE) {
+  const rows = db.prepare("SELECT * FROM schedules WHERE session_id=? AND mode=? ORDER BY created_at DESC").all(sessionId, mode) as ScheduleRow[];
   return rows.map(scheduleView);
 }
 
-export function createSchedule(input: unknown, sessionId: string, instant = new Date()) {
+export function createSchedule(input: unknown, sessionId: string, instant = new Date(), mode: DataMode = config.DATA_MODE) {
   const parsed = createScheduleSchema.parse(input);
   touchSession(sessionId);
-  const existing = db.prepare("SELECT id FROM schedules WHERE session_id=? AND status<>'CANCELLED' LIMIT 1").get(sessionId);
+  const existing = db.prepare("SELECT id FROM schedules WHERE session_id=? AND mode=? AND status<>'CANCELLED' LIMIT 1").get(sessionId, mode);
   if (existing) throw Object.assign(new Error("This session already has an active or paused schedule; update or cancel it before creating another"), { status: 409, code: "SCHEDULE_EXISTS", retryable: false });
   const id = randomUUID();
   const timestamp = instant.toISOString();
   const nextSlot = new Date(instant.getTime() + parsed.cadenceMinutes * 60_000).toISOString();
   db.prepare("INSERT INTO schedules (id, session_id, mode, symbols_json, cadence_seconds, max_runs_per_day, status, next_slot_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'PAUSED', ?, ?, ?)")
-    .run(id, sessionId, config.DATA_MODE, JSON.stringify(parsed.symbols), parsed.cadenceMinutes * 60, parsed.maxRunsPerDay, nextSlot, timestamp, timestamp);
-  return scheduleView(ownedSchedule(id, sessionId));
+    .run(id, sessionId, mode, JSON.stringify(parsed.symbols), parsed.cadenceMinutes * 60, parsed.maxRunsPerDay, nextSlot, timestamp, timestamp);
+  return scheduleView(ownedSchedule(id, sessionId, mode));
 }
 
-export function updateSchedule(id: string, input: unknown, sessionId: string, instant = new Date(), operatorEnabled = config.SCHEDULER_ENABLED) {
+export function updateSchedule(id: string, input: unknown, sessionId: string, instant = new Date(), operatorEnabled = config.SCHEDULER_ENABLED, mode: DataMode = "live") {
   const parsed = updateScheduleSchema.parse(input);
-  const schedule = ownedSchedule(id, sessionId);
+  const schedule = ownedSchedule(id, sessionId, mode);
   if (schedule.status === "CANCELLED" && parsed.status !== "CANCELLED") throw Object.assign(new Error("Cancelled schedules cannot be resumed"), { status: 409, code: "SCHEDULE_TERMINAL", retryable: false });
   if (parsed.status === "ACTIVE" && !operatorEnabled) throw Object.assign(new Error("Recurring scans are disabled by the server operator"), { status: 409, code: "SCHEDULER_DISABLED", retryable: false });
   const timestamp = instant.toISOString();
@@ -80,13 +80,13 @@ export function updateSchedule(id: string, input: unknown, sessionId: string, in
         .run(timestamp, id);
     }
   });
-  return scheduleView(ownedSchedule(id, sessionId));
+  return scheduleView(ownedSchedule(id, sessionId, mode));
 }
 
 function materializeDueSlots(instant: Date): number {
   const timestamp = instant.toISOString();
   const day = timestamp.slice(0, 10);
-  const due = db.prepare("SELECT * FROM schedules WHERE status='ACTIVE' AND next_slot_at<=? ORDER BY next_slot_at LIMIT 20").all(timestamp) as ScheduleRow[];
+  const due = db.prepare("SELECT * FROM schedules WHERE mode='live' AND status='ACTIVE' AND next_slot_at<=? ORDER BY next_slot_at LIMIT 20").all(timestamp) as ScheduleRow[];
   let created = 0;
   for (const schedule of due) {
     const symbols = JSON.parse(schedule.symbols_json) as string[];
@@ -109,8 +109,8 @@ function materializeDueSlots(instant: Date): number {
 function claimSlot(workerId: string, instant: Date) {
   return transaction(() => {
     const timestamp = instant.toISOString();
-    const row = db.prepare(`SELECT ss.* FROM schedule_slots ss JOIN schedules s ON s.id=ss.schedule_id
-      WHERE s.status='ACTIVE' AND (ss.status='QUEUED' OR (ss.status='RUNNING' AND ss.lease_expires_at<=?))
+    const row = db.prepare(`SELECT ss.*, s.mode AS schedule_mode FROM schedule_slots ss JOIN schedules s ON s.id=ss.schedule_id
+      WHERE s.mode='live' AND s.status='ACTIVE' AND (ss.status='QUEUED' OR (ss.status='RUNNING' AND ss.lease_expires_at<=?))
       AND NOT EXISTS (SELECT 1 FROM schedule_slots busy WHERE busy.session_id=ss.session_id AND busy.status='RUNNING' AND busy.lease_expires_at>? AND busy.id<>ss.id)
       ORDER BY ss.slot_at, ss.rowid LIMIT 1`).get(timestamp, timestamp) as any;
     if (!row) return null;
@@ -130,7 +130,7 @@ function assertSlotCanApply(slotId: string, workerId: string, instant: Date): vo
     .run(new Date(instant.getTime() + config.SCHEDULER_LEASE_SECONDS * 1_000).toISOString(), instant.toISOString(), slotId, workerId);
 }
 
-export async function runSchedulerTick(dependencies: SchedulerDependencies = { research, model }) {
+export async function runSchedulerTick(dependencies: SchedulerDependencies = {}) {
   const clock = dependencies.now ?? (() => new Date());
   const workerId = dependencies.workerId ?? randomUUID();
   const maxJobs = dependencies.maxJobs ?? 1;
@@ -141,10 +141,12 @@ export async function runSchedulerTick(dependencies: SchedulerDependencies = { r
     if (!slot) break;
     const idempotencyKey = `schedule:${slot.schedule_id}:${slot.symbol}:${slot.slot_at}`;
     try {
+      const mode = slot.schedule_mode as DataMode;
+      const selected = dependencies.research && dependencies.model ? { research: dependencies.research, model: dependencies.model } : runDependenciesForMode(mode);
       const run = await createRun(slot.symbol, idempotencyKey, {
-        research: dependencies.research, model: dependencies.model, now: clock,
+        ...selected, now: clock,
         beforeApply: () => assertSlotCanApply(slot.id, workerId, clock()),
-      }, slot.session_id);
+      }, slot.session_id, mode);
       transaction(() => {
         db.prepare("UPDATE schedule_slots SET status='COMPLETED', run_id=?, lease_owner=NULL, lease_expires_at=NULL, updated_at=? WHERE id=? AND lease_owner=?")
           .run(run.id, clock().toISOString(), slot.id, workerId);
@@ -178,7 +180,7 @@ export function startScheduler(options: StartSchedulerOptions = {}): SchedulerCo
   let active: Promise<unknown> | null = null;
   const tick = () => {
     if (stopping || active) return;
-    active = (options.tick ? options.tick() : runSchedulerTick({ research, model, workerId }))
+    active = (options.tick ? options.tick() : runSchedulerTick({ workerId }))
       .catch(() => { console.error("TradeSense scheduler tick failed; recovery remains in the durable slot state."); })
       .finally(() => { active = null; });
   };

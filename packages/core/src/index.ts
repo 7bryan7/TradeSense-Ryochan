@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const dataModeSchema = z.enum(["fixture", "live"]);
+export const dataModeSchema = z.literal("live");
 export type DataMode = z.infer<typeof dataModeSchema>;
 
 export const tokenSymbolSchema = z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,12}$/);
@@ -10,7 +10,7 @@ export const evidenceSchema = z.object({
   tool: z.string(),
   symbol: tokenSymbolSchema.optional(),
   status: z.enum(["ok", "partial", "unavailable"]),
-  dataMode: z.enum(["live", "mixed", "simulated", "unknown", "fixture"]),
+  dataMode: z.enum(["live", "mixed", "simulated", "unknown"]),
   asOf: z.string().datetime(),
   retrievedAt: z.string().datetime(),
   data: z.record(z.string(), z.unknown()),
@@ -18,6 +18,29 @@ export const evidenceSchema = z.object({
   warnings: z.array(z.string()).default([]),
 });
 export type Evidence = z.infer<typeof evidenceSchema>;
+
+export const marketChartPointSchema = z.object({
+  timestamp: z.string().datetime(),
+  open: z.number().positive().nullable(),
+  high: z.number().positive().nullable(),
+  low: z.number().positive().nullable(),
+  close: z.number().positive(),
+  volume: z.number().nonnegative().nullable(),
+});
+export type MarketChartPoint = z.infer<typeof marketChartPointSchema>;
+
+export const marketChartSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("unavailable"), reason: z.string() }),
+  z.object({
+    status: z.literal("available"), evidenceId: z.string(), symbol: tokenSymbolSchema,
+    currency: z.string().min(1).max(12), volumeUnit: z.string().min(1).max(24).nullable(),
+    intervalSeconds: z.number().int().positive(), windowSeconds: z.number().int().positive(),
+    sourcePath: z.string(), dataMode: z.string(), asOf: z.string().datetime(), retrievedAt: z.string().datetime(),
+    points: z.array(marketChartPointSchema).min(2).max(500),
+    volumeCoverage: z.enum(["complete", "partial", "unavailable"]),
+  }),
+]);
+export type MarketChart = z.infer<typeof marketChartSchema>;
 
 export function evidencePriceUsd(evidence: Evidence): number | null {
   const market = evidence.data.market;
@@ -51,9 +74,27 @@ export const decisionSchema = decisionProposalSchema.extend({
 });
 export type Decision = z.infer<typeof decisionSchema>;
 
+export const chatEvidenceClaimSchema = z.object({
+  text: z.string().min(1).max(1_000),
+  evidenceIds: z.array(z.string()).min(1).max(8),
+});
+
+export const chatDerivationSchema = chatEvidenceClaimSchema.extend({
+  method: z.string().min(1).max(500),
+  inputs: z.array(z.string().min(1).max(300)).min(1).max(8),
+});
+
+export const chatClassificationSchema = z.object({
+  observedFacts: z.array(chatEvidenceClaimSchema).min(1).max(8),
+  derivedCalculations: z.array(chatDerivationSchema).max(6),
+  interpretations: z.array(chatEvidenceClaimSchema).min(1).max(8),
+});
+export type ChatClassification = z.infer<typeof chatClassificationSchema>;
+
 export const chatAnswerSchema = z.object({
   text: z.string().min(1).max(4_000),
   citations: z.array(z.string()).min(1),
+  classification: chatClassificationSchema,
   limitations: z.array(z.string()).max(8),
   suggestedQuestions: z.array(z.string()).max(4),
   model: z.string(),

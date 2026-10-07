@@ -4,7 +4,7 @@ import type { Evidence } from "@tradesense/core";
 import { GeminiModelAdapter } from "./model.js";
 
 const evidence: Evidence = {
-  id: "evidence-1", tool: "analyze_token", symbol: "SOL", status: "ok", dataMode: "fixture",
+  id: "evidence-1", tool: "analyze_token", symbol: "SOL", status: "ok", dataMode: "live",
   asOf: "2026-09-23T00:00:00.000Z", retrievedAt: "2026-09-23T00:00:01.000Z",
   data: { price: 172.4, change24h: 5.7, rsi14: 67 },
   summary: { headline: "SOL rose 5.7%", keyPoints: [] }, warnings: [],
@@ -18,6 +18,12 @@ function clientWith(responses: unknown[]) {
   });
   return { client: { models: { generateContent } }, generateContent };
 }
+
+const classification = (evidenceIds: string[]) => ({
+  observedFacts: [{ text: "The saved evidence reports positive momentum.", evidenceIds }],
+  derivedCalculations: [],
+  interpretations: [{ text: "The evidence supports a cautious positive reading.", evidenceIds }],
+});
 
 describe("GeminiModelAdapter", () => {
   it("validates a structured decision and adds trusted metadata", async () => {
@@ -45,18 +51,48 @@ describe("GeminiModelAdapter", () => {
   });
 
   it("repairs one answer that cites evidence outside the supplied set", async () => {
-    const base = { text: "SOL has positive fixture momentum.", limitations: [], suggestedQuestions: [] };
+    const base = { text: "SOL has positive fixture momentum.", classification: classification([evidence.id]), limitations: [], suggestedQuestions: [] };
     const fake = clientWith([{ ...base, citations: ["invented"] }, { ...base, citations: [evidence.id] }]);
     const adapter = new GeminiModelAdapter("test-key", "gemini-3.5-flash-lite", fake.client);
     const result = await adapter.answerQuestion({ question: "What changed?", symbol: "SOL", evidence: [evidence], history: [] });
     expect(result.output.citations).toEqual([evidence.id]);
+    expect(result.output.classification.observedFacts[0]?.evidenceIds).toEqual([evidence.id]);
+    expect(fake.generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it("repairs a classified claim that cites evidence outside the supplied set", async () => {
+    const base = { text: "SOL has positive fixture momentum.", citations: [evidence.id], limitations: [], suggestedQuestions: [] };
+    const fake = clientWith([
+      { ...base, classification: classification(["invented"]) },
+      { ...base, classification: classification([evidence.id]) },
+    ]);
+    const adapter = new GeminiModelAdapter("test-key", "gemini-3.5-flash-lite", fake.client);
+    const result = await adapter.answerQuestion({ question: "What changed?", symbol: "SOL", evidence: [evidence], history: [] });
+    expect(result.output.classification.interpretations[0]?.evidenceIds).toEqual([evidence.id]);
+    expect(result.output.promptVersion).toBe("chat-v2-classified");
+    expect(fake.generateContent).toHaveBeenCalledTimes(2);
+  });
+
+  it("requires every answer citation to appear in a classified claim", async () => {
+    const otherEvidence: Evidence = { ...evidence, id: "evidence-2", tool: "scan_market" };
+    const base = { text: "SOL and the market have saved evidence.", citations: [evidence.id, otherEvidence.id], limitations: [], suggestedQuestions: [] };
+    const fake = clientWith([
+      { ...base, classification: classification([evidence.id]) },
+      { ...base, classification: classification([evidence.id, otherEvidence.id]) },
+    ]);
+    const adapter = new GeminiModelAdapter("test-key", "gemini-3.5-flash-lite", fake.client);
+    const result = await adapter.answerQuestion({ question: "What changed?", symbol: "SOL", evidence: [evidence, otherEvidence], history: [] });
+    expect(result.output.classification.observedFacts[0]?.evidenceIds).toEqual([evidence.id, otherEvidence.id]);
     expect(fake.generateContent).toHaveBeenCalledTimes(2);
   });
 
   it("repairs a chat answer that omits required web evidence", async () => {
     const webEvidence: Evidence = { ...evidence, id: "web-1", tool: "tavily_search", dataMode: "live" };
     const base = { text: "A public update was reported.", limitations: [], suggestedQuestions: [] };
-    const fake = clientWith([{ ...base, citations: [evidence.id] }, { ...base, citations: [evidence.id, webEvidence.id] }]);
+    const fake = clientWith([
+      { ...base, citations: [evidence.id], classification: classification([evidence.id]) },
+      { ...base, citations: [evidence.id, webEvidence.id], classification: classification([evidence.id, webEvidence.id]) },
+    ]);
     const adapter = new GeminiModelAdapter("test-key", "gemini-3.5-flash-lite", fake.client);
     const result = await adapter.answerQuestion({ question: "Latest news?", symbol: "SOL", evidence: [evidence, webEvidence], history: [], requiredEvidenceIds: [webEvidence.id] });
     expect(result.output.citations).toContain(webEvidence.id);

@@ -5,21 +5,23 @@ import type { ModelAdapter, ResearchAdapter } from "@tradesense/adapters";
 import type { Evidence } from "@tradesense/core";
 
 const databasePath = `/tmp/tradesense-chat-lifecycle-${process.pid}-${randomUUID()}.sqlite`;
-process.env.DATA_MODE = "fixture";
-process.env.LLM_PROVIDER = "fixture";
+process.env.DATA_MODE = "live";
+process.env.LLM_PROVIDER = "gemini";
 process.env.LLM_API_KEY = "";
 process.env.RYO_MCP_KEY = "";
 process.env.TAVILY_API_KEY = "";
 process.env.DATABASE_PATH = databasePath;
 
 const [{ FixtureModelAdapter, FixtureResearchAdapter }, database, services] = await Promise.all([
-  import("@tradesense/adapters"),
+  import("../../../tests/support/providers.js"),
   import("./db.js"),
   import("./services.js"),
 ]);
 
 const sessionA = "10000000-0000-4000-8000-000000000001";
 const sessionB = "20000000-0000-4000-8000-000000000002";
+const sessionC = "30000000-0000-4000-8000-000000000003";
+const sessionD = "40000000-0000-4000-8000-000000000004";
 const unavailableWebSearch = async () => { throw new Error("Web search must not run in this test"); };
 
 describe("durable chat and session ownership", () => {
@@ -28,6 +30,44 @@ describe("durable chat and session ownership", () => {
   afterAll(() => {
     database.db.close();
     for (const suffix of ["", "-wal", "-shm"]) rmSync(`${databasePath}${suffix}`, { force: true });
+  });
+
+  it("lists owned conversations with durable summaries and newest activity first", async () => {
+    const first = services.createConversation("BTC", sessionC);
+    const second = services.createConversation("ETH", sessionC);
+    const otherSession = services.createConversation("SOL", sessionD);
+
+    const initial = services.listConversations(sessionC);
+    expect(initial).toHaveLength(2);
+    expect(initial.map((conversation) => conversation.id)).toEqual([second.id, first.id]);
+    expect(initial.find((conversation) => conversation.id === first.id)).toMatchObject({
+      mode: "live", symbol: "BTC", title: "BTC research", messageCount: 0, latestMessage: null,
+    });
+    expect(services.listConversations(sessionD).map((conversation) => conversation.id)).toEqual([otherSession.id]);
+
+    const cashBefore = services.portfolio(sessionC).cashUsd;
+    const question = "What does the saved BTC evidence show in this conversation?";
+    const answered = await services.ask(first.id, question, `list-${randomUUID()}`, "BTC", undefined, sessionC, {
+      research: new FixtureResearchAdapter(), model: new FixtureModelAdapter(), searchWeb: unavailableWebSearch,
+    });
+
+    expect(answered.messages[0]!.classification).toBeNull();
+    expect(answered.messages[1]!.classification).toMatchObject({
+      observedFacts: [{ evidenceIds: [expect.any(String)] }],
+      derivedCalculations: [],
+      interpretations: [{ evidenceIds: [expect.any(String)] }],
+    });
+    expect(JSON.parse((database.db.prepare("SELECT classification_json FROM messages WHERE id=?").get(answered.messages[1]!.id) as { classification_json: string }).classification_json))
+      .toEqual(answered.messages[1]!.classification);
+
+    const refreshed = services.listConversations(sessionC);
+    expect(refreshed[0]).toMatchObject({
+      id: first.id, title: question, messageCount: 2,
+      latestMessage: { role: "assistant", status: "complete" },
+    });
+    expect(refreshed[0]!.latestMessage?.text.length).toBeGreaterThan(0);
+    expect(services.portfolio(sessionC).cashUsd).toBe(cashBefore);
+    expect(refreshed.some((conversation) => conversation.id === otherSession.id)).toBe(false);
   });
 
   it("reuses saved research when a known model failure is retried", async () => {
@@ -117,6 +157,22 @@ describe("durable chat and session ownership", () => {
       .rejects.toMatchObject({ status: 404 });
     expect(services.portfolio(sessionA).cashUsd).not.toBe(services.portfolio(sessionB).cashUsd);
     expect(services.history(sessionB)).toEqual([]);
+  });
+
+  it("labels legacy evidence whose mode does not match its conversation", async () => {
+    const conversation = services.createConversation("BTC", sessionD);
+    const answered = await services.ask(conversation.id, "What does BTC show?", randomUUID(), "BTC", undefined, sessionD, {
+      research: new FixtureResearchAdapter(), model: new FixtureModelAdapter(), searchWeb: unavailableWebSearch,
+    });
+    database.db.prepare("UPDATE evidence SET payload_json=json_set(payload_json, '$.dataMode', 'simulated') WHERE message_id IN (SELECT id FROM messages WHERE conversation_id=?)").run(conversation.id);
+
+    const legacy = services.conversationView(conversation.id, sessionD);
+    expect(legacy.messages.find((message) => message.role === "assistant")).toMatchObject({
+      integrityWarning: expect.stringContaining("SIMULATED evidence inside a LIVE conversation"),
+      sources: [],
+      text: "missing data",
+    });
+    expect(answered.messages.find((message) => message.role === "assistant")?.integrityWarning).toBeNull();
   });
 
   it("surfaces an ambiguous interrupted model call instead of repeating it", async () => {

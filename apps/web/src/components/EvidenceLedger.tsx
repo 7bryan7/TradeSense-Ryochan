@@ -1,12 +1,13 @@
 import { useId, useMemo, useState } from "react";
 import { ChevronDown, Clock3, Database, ShieldAlert } from "lucide-react";
 import { observedLabel } from "../api";
+import { formatDateTime } from "../format";
 import type { Evidence } from "../types";
 import { StatePanel, StatusBadge } from "./UiPrimitives";
 
 function exactTime(value: string) {
   const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : "Unknown timestamp";
+  return Number.isFinite(timestamp) ? formatDateTime(timestamp) : "Unknown timestamp";
 }
 
 export function EvidenceLedger({ items, title = "Saved evidence ledger" }: { items: Evidence[]; title?: string }) {
@@ -22,7 +23,7 @@ export function EvidenceLedger({ items, title = "Saved evidence ledger" }: { ite
       <div><p className="eyebrow">PERSISTED RESEARCH</p><h2 id={titleId}>{title}</h2><p>{items.length} owned observation{items.length === 1 ? "" : "s"} tied to this run.</p></div>
       <Database />
     </header>
-    {items.length === 0 ? <StatePanel compact kind="unavailable" title="No saved evidence" text="This run does not contain an accessible evidence snapshot." /> : <>
+    {items.length === 0 ? <StatePanel compact kind="unavailable" title="missing data" text="This run does not contain an accessible evidence snapshot." /> : <>
       <div className="evidence-filters">
         <label><span>Tool</span><select aria-label="Filter evidence by tool" value={toolFilter} onChange={(event) => setToolFilter(event.target.value)}><option value="all">All tools</option>{tools.map((tool) => <option key={tool} value={tool}>{tool}</option>)}</select></label>
         <label><span>Status</span><select aria-label="Filter evidence by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{statuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
@@ -32,7 +33,7 @@ export function EvidenceLedger({ items, title = "Saved evidence ledger" }: { ite
         {visible.map((item) => <details className="evidence-entry" id={`evidence-${item.id}`} key={item.id}>
           <summary>
             <span className="evidence-entry-icon"><Database /></span>
-            <span className="evidence-entry-copy"><small>{item.tool}{item.symbol ? ` · ${item.symbol}` : ""}</small><strong>{item.summary.headline}</strong><span><Clock3 /> {observedLabel(item.asOf)} · {item.dataMode}</span></span>
+            <span className="evidence-entry-copy"><small>{item.purpose === "execution_quote" ? "EXECUTION QUOTE · " : ""}{item.tool}{item.symbol ? ` · ${item.symbol}` : ""}</small><strong>{item.summary.headline}</strong><span><Clock3 /> {observedLabel(item.asOf)} · {item.dataMode}</span></span>
             <StatusBadge value={item.status} />
             <ChevronDown className="evidence-chevron" />
           </summary>
@@ -41,6 +42,7 @@ export function EvidenceLedger({ items, title = "Saved evidence ledger" }: { ite
               <div><dt>Observed at</dt><dd>{exactTime(item.asOf)}</dd></div>
               <div><dt>Retrieved at</dt><dd>{exactTime(item.retrievedAt)}</dd></div>
               <div><dt>Data mode</dt><dd>{item.dataMode}</dd></div>
+              <div><dt>Purpose</dt><dd>{item.purpose === "execution_quote" ? "Post-decision execution quote" : "Decision research"}</dd></div>
               <div><dt>Evidence ID</dt><dd>{item.id}</dd></div>
             </dl>
             <div className="evidence-detail-columns">

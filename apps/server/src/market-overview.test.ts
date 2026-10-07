@@ -5,8 +5,8 @@ import type { ResearchAdapter } from "@tradesense/adapters";
 import type { Evidence } from "@tradesense/core";
 
 const databasePath = `/tmp/tradesense-market-overview-${process.pid}-${randomUUID()}.sqlite`;
-process.env.DATA_MODE = "fixture";
-process.env.LLM_PROVIDER = "fixture";
+process.env.DATA_MODE = "live";
+process.env.LLM_PROVIDER = "gemini";
 process.env.LLM_API_KEY = "";
 process.env.RYO_MCP_KEY = "";
 process.env.DATABASE_PATH = databasePath;
@@ -18,7 +18,7 @@ const viewedAt = new Date("2026-09-26T12:01:00.000Z");
 
 function overviewEvidence(): Evidence {
   return {
-    id: randomUUID(), tool: "market_overview", status: "ok", dataMode: "fixture",
+    id: randomUUID(), tool: "market_overview", status: "ok", dataMode: "live",
     asOf: observedAt.toISOString(), retrievedAt: viewedAt.toISOString(),
     data: { regime: "risk-on", fearGreed: 62, breadthPercent: 58, topMovers: ["SOL", "BTC", "ETH"] },
     summary: { headline: "Fixture market breadth is positive", keyPoints: ["Breadth is above half"] },

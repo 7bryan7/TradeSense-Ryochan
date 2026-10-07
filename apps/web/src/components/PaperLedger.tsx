@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { History as HistoryIcon } from "lucide-react";
+import { prettyOutcome } from "../api";
+import { formatDateTime, formatMoney } from "../format";
 import type { Run } from "../types";
 import { StatePanel, StatusBadge } from "./UiPrimitives";
 
@@ -24,10 +26,12 @@ function formatCents(value: bigint, signed = false): string {
 
 export function PaperLedger({ runs }: { runs: Run[] }) {
   const [filter, setFilter] = useState<LedgerFilter>("all");
+  const [limit, setLimit] = useState(10);
   const simulations = useMemo(() => runs
     .filter((run): run is Run & { simulation: NonNullable<Run["simulation"]> } => Boolean(run.simulation))
     .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)), [runs]);
-  const visible = simulations.filter((run) => filter === "all" || (filter === "applied" ? run.simulation.outcome === "APPLIED" : run.simulation.outcome !== "APPLIED")).slice(0, 10);
+  const filtered = simulations.filter((run) => filter === "all" || (filter === "applied" ? run.simulation.outcome === "APPLIED" : run.simulation.outcome !== "APPLIED"));
+  const visible = filtered.slice(0, limit);
   const applied = simulations.filter((run) => run.simulation.outcome === "APPLIED");
   const fees = applied.reduce((total, run) => total + usdToCents(run.simulation.feeUsd), 0n);
   const cashFlow = applied.reduce((total, run) => total + usdToCents(run.simulation.cashDeltaUsd), 0n);
@@ -45,8 +49,8 @@ export function PaperLedger({ runs }: { runs: Run[] }) {
         <div><small>NET CASH FLOW</small><strong className={cashFlow < 0n ? "cash-out" : cashFlow > 0n ? "cash-in" : undefined}>{formatCents(cashFlow, true)}</strong><span>Applied buys and sells</span></div>
       </div>
       <div className="paper-ledger-toolbar">
-        <label><span>Show</span><select aria-label="Filter paper ledger" value={filter} onChange={(event) => setFilter(event.target.value as LedgerFilter)}><option value="all">All outcomes</option><option value="applied">Applied fills</option><option value="nonfills">Non-fill outcomes</option></select></label>
-        <span>{visible.length} of {simulations.length} records shown</span>
+        <label><span>Show</span><select aria-label="Filter paper ledger" value={filter} onChange={(event) => { setFilter(event.target.value as LedgerFilter); setLimit(10); }}><option value="all">All outcomes</option><option value="applied">Applied fills</option><option value="nonfills">Non-fill outcomes</option></select></label>
+        <span>{visible.length} of {filtered.length} matching records shown</span>
       </div>
       {visible.length ? <div className="paper-transaction-list">
         {visible.map((run) => {
@@ -55,11 +59,11 @@ export function PaperLedger({ runs }: { runs: Run[] }) {
           const cashDelta = usdToCents(simulation.cashDeltaUsd);
           return <article className="paper-transaction" key={run.id}>
             <div className={`transaction-action action-${simulation.action.toLowerCase()}`} aria-hidden="true">{simulation.action[0]}</div>
-            <div className="transaction-title"><strong>{run.symbol} · {simulation.action}</strong><span>{new Date(run.createdAt).toLocaleString()}</span></div>
-            <StatusBadge value={simulation.outcome} />
+            <div className="transaction-title"><strong>{run.symbol} · {simulation.action}</strong><span>{formatDateTime(run.createdAt)}</span></div>
+            <StatusBadge value={simulation.outcome} label={prettyOutcome(simulation.outcome)} />
             <dl>
-              <div><dt>Quantity</dt><dd>{appliedFill ? simulation.quantity : "—"}</dd></div>
-              <div><dt>Fill price</dt><dd>{appliedFill ? `$${Number(simulation.fillPriceUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</dd></div>
+              <div><dt>Quantity</dt><dd>{appliedFill ? simulation.quantity : "missing data"}</dd></div>
+              <div><dt>Fill price</dt><dd>{appliedFill ? formatMoney(simulation.fillPriceUsd) : "missing data"}</dd></div>
               <div><dt>Fee</dt><dd>{formatCents(usdToCents(simulation.feeUsd))}</dd></div>
               <div><dt>Cash effect</dt><dd className={cashDelta < 0n ? "cash-out" : cashDelta > 0n ? "cash-in" : undefined}>{formatCents(cashDelta, true)}</dd></div>
             </dl>
@@ -67,6 +71,7 @@ export function PaperLedger({ runs }: { runs: Run[] }) {
           </article>;
         })}
       </div> : <StatePanel compact kind="empty" title="No matching simulation records" text="Choose another ledger filter to see the saved paper outcomes." />}
+      {visible.length < filtered.length && <button type="button" className="button button-secondary ledger-load-more" onClick={() => setLimit((value) => value + 10)}>Load 10 more</button>}
     </>}
   </section>;
 }

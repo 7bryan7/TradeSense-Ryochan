@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, LoaderCircle, XCircle } from "lucide-react";
 import { prettyOutcome } from "../api";
+import { formatDateTime } from "../format";
 import type { Run } from "../types";
 import { StatusBadge } from "./UiPrimitives";
 
@@ -35,7 +36,7 @@ export function RunWorkflow({ run, requestPending }: { run: Run | null; requestP
     run.evidence.length ? `${run.evidence.length} observation${run.evidence.length === 1 ? "" : "s"} persisted` : stepDefinitions[0].idle,
     run.decision ? `${run.decision.action} · ${run.decision.confidence} confidence` : stepDefinitions[1].idle,
     run.simulation ? `${prettyOutcome(run.simulation.outcome)} · ${run.simulation.action}` : stepDefinitions[2].idle,
-    run.status === "COMPLETED" ? `Completed ${run.completedAt ? new Date(run.completedAt).toLocaleString() : "with a saved result"}` : run.failure ? `${run.failure.code} · stopped during ${run.failure.stage}` : `Run status: ${run.status.replaceAll("_", " ")}`,
+    run.status === "COMPLETED" ? `Completed ${run.completedAt ? formatDateTime(run.completedAt) : "with a saved result"}` : run.failure ? `${run.failure.code} · stopped during ${run.failure.stage}` : `Run status: ${run.status.replaceAll("_", " ")}`,
   ] : stepDefinitions.map((step) => step.idle);
 
   return <section className="glass-card run-workflow" aria-labelledby="run-workflow-title">

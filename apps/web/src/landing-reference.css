@@ -1,0 +1,23 @@
+:root.reference-landing-active { font-size: 19.2px; }
+.reference-landing {
+  color-scheme: dark;
+  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+}
+.reference-landing h1,
+.reference-landing h2,
+.reference-landing h3,
+.reference-landing p { margin: 0; }
+.reference-landing button { margin: 0; padding: 0; border: 0 solid transparent; color: inherit; background: transparent; text-transform: none; }
+.reference-landing img,
+.reference-landing video { display: block; max-width: 100%; }
+
+@tailwind utilities;
+
+.reference-landing .bg-grid-pattern {
+  background-image: linear-gradient(rgba(251,237,224,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(251,237,224,.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+.reference-landing .bg-radial-glow {
+  background: radial-gradient(ellipse at top, rgba(56,249,151,.12), rgba(12,14,23,0) 68%);
+}

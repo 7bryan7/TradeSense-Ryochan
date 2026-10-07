@@ -1,26 +1,38 @@
 import { createHash, randomUUID } from "node:crypto";
-import { FixtureModelAdapter, FixtureResearchAdapter, GeminiModelAdapter, RyoRestAdapter, type ModelAdapter, type ModelAudit, type ResearchAdapter, type RyoTool } from "@tradesense/adapters";
-import { centsToUsd, evidencePriceUsd, quantityToString, simulateDecision, type Evidence } from "@tradesense/core";
+import { GeminiModelAdapter, RyoRestAdapter, type ModelAdapter, type ModelAudit, type ResearchAdapter, type RyoTool } from "@tradesense/adapters";
+import { centsToUsd, evidencePriceUsd, marketChartSchema, quantityToString, simulateDecision, type DataMode, type Evidence, type MarketChart } from "@tradesense/core";
 import { config } from "./config.js";
 import { db, transaction } from "./db.js";
 import { buildWebSearchQuery, needsWebSearch } from "./chat-routing.js";
 import { searchChatWeb } from "./web-search.js";
 import { withProviderBudget } from "./limits.js";
 
-export const research: ResearchAdapter = config.DATA_MODE === "live"
-  ? new RyoRestAdapter(config.RYO_MCP_URL, config.RYO_MCP_KEY)
-  : new FixtureResearchAdapter();
-export const model: ModelAdapter = config.LLM_PROVIDER === "gemini"
-  ? new GeminiModelAdapter(config.LLM_API_KEY, config.LLM_MODEL)
-  : new FixtureModelAdapter();
+const liveResearch: ResearchAdapter | null = config.RYO_MCP_KEY ? new RyoRestAdapter(config.RYO_MCP_URL, config.RYO_MCP_KEY) : null;
+const configuredModel: ModelAdapter | null = config.LLM_API_KEY ? new GeminiModelAdapter(config.LLM_API_KEY, config.LLM_MODEL) : null;
+export const liveModeAvailable = Boolean(liveResearch && config.LLM_PROVIDER === "gemini" && config.LLM_API_KEY);
+
+export function researchForMode(mode: DataMode): ResearchAdapter {
+  if (mode !== "live") throw Object.assign(new Error("Only live data is supported"), { status: 400 });
+  if (!liveResearch) throw Object.assign(new Error("missing data: RYO is not configured"), { status: 409, code: "LIVE_MODE_UNAVAILABLE", retryable: false });
+  return liveResearch;
+}
+
+export function modelForMode(mode: DataMode): ModelAdapter {
+  if (mode === "live" && !liveModeAvailable) throw Object.assign(new Error("missing data: live research requires configured RYO and Gemini credentials"), { status: 409, code: "LIVE_MODE_UNAVAILABLE", retryable: false });
+  if (!configuredModel) throw Object.assign(new Error("missing data: Gemini is not configured"), { status: 503 });
+  return configuredModel;
+}
+
+export function runDependenciesForMode(mode: DataMode): RunDependencies {
+  return { research: researchForMode(mode), model: modelForMode(mode) };
+}
+
+export const research: ResearchAdapter = { call: (tool, args) => researchForMode("live").call(tool, args) };
+export const model: ModelAdapter = { createDecision: (input) => modelForMode("live").createDecision(input), answerQuestion: (input) => modelForMode("live").answerQuestion(input) };
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const now = () => new Date().toISOString();
 export const DEFAULT_SESSION_ID = "00000000-0000-4000-8000-000000000001";
-
-function sessionPortfolioId(sessionId: string): string {
-  return `demo-${config.DATA_MODE}-${sessionId}`;
-}
 
 export function touchSession(sessionId: string): void {
   const timestamp = now();
@@ -34,8 +46,9 @@ export async function callResearchWithBudget<T extends Awaited<ReturnType<Resear
   args: Parameters<ResearchAdapter["call"]>[1],
   sessionId: string,
   purpose: "decision" | "chat" | "market" | "smoke",
+  mode: DataMode = config.DATA_MODE,
 ): Promise<T> {
-  if (config.DATA_MODE !== "live") return adapter.call(tool, args) as Promise<T>;
+  if (mode !== "live") throw new Error("Only live data is supported");
   touchSession(sessionId);
   return withProviderBudget("ryo", purpose, sessionId, () => adapter.call(tool, args)) as Promise<T>;
 }
@@ -46,12 +59,29 @@ async function callModelWithBudget<T>(sessionId: string, purpose: "decision" | "
   return withProviderBudget("gemini", purpose, sessionId, operation);
 }
 
-function ensurePortfolio(sessionId: string): string {
+function ensurePortfolio(sessionId: string, mode: DataMode = config.DATA_MODE): string {
   touchSession(sessionId);
-  const id = sessionPortfolioId(sessionId);
-  db.prepare("INSERT OR IGNORE INTO portfolios (id, session_id, mode, cash_cents, created_at) VALUES (?, ?, ?, ?, ?)")
-    .run(id, sessionId, config.DATA_MODE, Math.round(config.SIM_INITIAL_CASH * 100), now());
+  const active = db.prepare("SELECT id FROM portfolios WHERE session_id=? AND mode=? AND archived_at IS NULL").get(sessionId, mode) as { id: string } | undefined;
+  if (active) return active.id;
+  const id = randomUUID();
+  db.prepare("INSERT INTO portfolios (id, session_id, mode, cash_cents, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(id, sessionId, mode, Math.round(config.SIM_INITIAL_CASH * 100), now());
   return id;
+}
+
+export function createPracticePortfolio(sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
+  const currentId = ensurePortfolio(sessionId, mode);
+  const unfinished = db.prepare("SELECT id FROM runs WHERE portfolio_id=? AND status NOT IN ('COMPLETED', 'FAILED') LIMIT 1").get(currentId);
+  if (unfinished) throw Object.assign(new Error("Wait for the current analysis to finish before starting a new practice account"), { status: 409, code: "RUN_IN_PROGRESS", retryable: true });
+  const activeSchedule = db.prepare("SELECT id FROM schedules WHERE session_id=? AND mode=? AND status='ACTIVE' LIMIT 1").get(sessionId, mode);
+  if (activeSchedule) throw Object.assign(new Error("Pause the active recurring schedule before starting a new practice account"), { status: 409, code: "SCHEDULE_ACTIVE", retryable: false });
+  const timestamp = now();
+  transaction(() => {
+    db.prepare("UPDATE portfolios SET archived_at=? WHERE id=? AND session_id=? AND archived_at IS NULL").run(timestamp, currentId, sessionId);
+    db.prepare("INSERT INTO portfolios (id, session_id, mode, cash_cents, created_at) VALUES (?, ?, ?, ?, ?)")
+      .run(randomUUID(), sessionId, mode, Math.round(config.SIM_INITIAL_CASH * 100), timestamp);
+  });
+  return portfolio(sessionId, new Date(timestamp), mode);
 }
 
 export interface RunDependencies {
@@ -69,6 +99,7 @@ export interface ChatDependencies {
 
 interface PolicyInput {
   researchPlanVersion?: string;
+  executionQuotePolicyVersion?: string;
   criticalEvidence?: {
     analyzeTokenId: string;
     deepAnalysisId: string;
@@ -76,6 +107,12 @@ interface PolicyInput {
   };
   referencePriceCents: string;
   evidenceAsOf: string;
+  executionQuote?: {
+    evidenceId: string;
+    priceCents: string;
+    asOf: string;
+    retrievedAt: string;
+  };
   portfolioVersion: number;
   portfolio: {
     cashCents: string;
@@ -93,11 +130,12 @@ interface PolicyInput {
   };
 }
 
-export const DECISION_RESEARCH_PLAN_VERSION = "selected-token-v2";
+export const DECISION_RESEARCH_PLAN_VERSION = "selected-token-v3";
+export const EXECUTION_QUOTE_POLICY_VERSION = "post-decision-quote-v1";
 
 interface ResearchStep {
   ordinal: number;
-  role: "selected_token" | "risk_coverage" | "market_context" | "benchmark_comparison";
+  role: "selected_token" | "risk_coverage" | "market_context" | "benchmark_comparison" | "execution_quote";
   tool: RyoTool;
   args: Record<string, unknown>;
 }
@@ -127,11 +165,47 @@ function decisionEvidenceFor(runId: string): Evidence[] {
   return rows.map((row) => JSON.parse(row.payload_json) as Evidence);
 }
 
+function validateResearchEvidence(evidence: Evidence, step: ResearchStep, symbol: string, mode: DataMode): void {
+  if (evidence.tool !== step.tool) {
+    throw Object.assign(new Error(`RYO returned ${evidence.tool} while ${step.tool} was requested`), { code: "RYO_TOOL_MISMATCH", retryable: false });
+  }
+  if ((step.tool === "analyze_token" || step.tool === "deep_analysis") && evidence.symbol !== symbol) {
+    throw Object.assign(new Error(`RYO returned ${evidence.symbol ?? "no symbol"} while ${symbol} was requested`), { code: "RYO_IDENTITY_MISMATCH", retryable: false });
+  }
+  if (evidence.dataMode !== mode) {
+    throw Object.assign(new Error(`Research returned ${evidence.dataMode} evidence while ${mode} mode was requested`), { code: "RYO_MODE_MISMATCH", retryable: false });
+  }
+}
+
+async function runDecisionResearchStep(runId: string, symbol: string, sessionId: string, mode: DataMode, step: ResearchStep, dependencies: RunDependencies, clock: () => Date): Promise<Evidence> {
+  const startedAt = clock().toISOString();
+  db.prepare("UPDATE research_steps SET status='RUNNING', attempt_count=attempt_count+1, started_at=?, completed_at=NULL, evidence_id=NULL, provider_status=NULL, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+    .run(startedAt, runId, step.ordinal);
+  try {
+    const evidence = await callResearchWithBudget(dependencies.research, step.tool, step.args, sessionId, "decision", mode);
+    validateResearchEvidence(evidence, step, symbol, mode);
+    transaction(() => {
+      db.prepare("INSERT INTO evidence (id, run_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'decision', ?, ?, ?, ?, ?, ?, ?)")
+        .run(evidence.id, runId, evidence.tool, evidence.symbol ?? null, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
+      db.prepare("UPDATE research_steps SET status='COMPLETED', completed_at=?, evidence_id=?, provider_status=?, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+        .run(clock().toISOString(), evidence.id, evidence.status, runId, step.ordinal);
+      db.prepare("UPDATE runs SET updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
+        .run(clock().toISOString(), runId);
+    });
+    return evidence;
+  } catch (error) {
+    const value = error as Error & { code?: string };
+    db.prepare("UPDATE research_steps SET status='FAILED', completed_at=?, failure_code=?, failure_message=? WHERE run_id=? AND ordinal=?")
+      .run(clock().toISOString(), value.code ?? "RYO_REQUEST_FAILED", value.message.slice(0, 1_000), runId, step.ordinal);
+    throw error;
+  }
+}
+
 function primaryTokenEvidence(evidence: Evidence[]): Evidence | undefined {
   return evidence.find((item) => item.tool === "analyze_token");
 }
 
-async function collectDecisionEvidence(runId: string, symbol: string, sessionId: string, dependencies: RunDependencies, clock: () => Date): Promise<Evidence[]> {
+async function collectDecisionEvidence(runId: string, symbol: string, sessionId: string, mode: DataMode, dependencies: RunDependencies, clock: () => Date): Promise<Evidence[]> {
   const plan = decisionResearchPlan(symbol);
   ensureResearchSteps(runId, plan);
   const saved = decisionEvidenceFor(runId);
@@ -144,33 +218,20 @@ async function collectDecisionEvidence(runId: string, symbol: string, sessionId:
         .run(existing.retrievedAt, existing.id, existing.status, runId, step.ordinal);
       continue;
     }
-    const startedAt = clock().toISOString();
-    db.prepare("UPDATE research_steps SET status='RUNNING', attempt_count=attempt_count+1, started_at=?, completed_at=NULL, evidence_id=NULL, provider_status=NULL, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
-      .run(startedAt, runId, step.ordinal);
-    try {
-      const evidence = await callResearchWithBudget(dependencies.research, step.tool, step.args, sessionId, "decision");
-      if (evidence.tool !== step.tool) {
-        throw Object.assign(new Error(`RYO returned ${evidence.tool} while ${step.tool} was requested`), { code: "RYO_TOOL_MISMATCH", retryable: false });
-      }
-      if ((step.tool === "analyze_token" || step.tool === "deep_analysis") && evidence.symbol !== symbol) {
-        throw Object.assign(new Error(`RYO returned ${evidence.symbol ?? "no symbol"} while ${symbol} was requested`), { code: "RYO_IDENTITY_MISMATCH", retryable: false });
-      }
-      transaction(() => {
-        db.prepare("INSERT INTO evidence (id, run_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'decision', ?, ?, ?, ?, ?, ?, ?)")
-          .run(evidence.id, runId, evidence.tool, evidence.symbol ?? null, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
-        db.prepare("UPDATE research_steps SET status='COMPLETED', completed_at=?, evidence_id=?, provider_status=?, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
-          .run(clock().toISOString(), evidence.id, evidence.status, runId, step.ordinal);
-        db.prepare("UPDATE runs SET updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
-          .run(clock().toISOString(), runId);
-      });
-      byTool.set(step.tool, evidence);
-    } catch (error) {
-      const value = error as Error & { code?: string };
-      db.prepare("UPDATE research_steps SET status='FAILED', completed_at=?, failure_code=?, failure_message=? WHERE run_id=? AND ordinal=?")
-        .run(clock().toISOString(), value.code ?? "RYO_REQUEST_FAILED", value.message.slice(0, 1_000), runId, step.ordinal);
-      throw error;
-    }
   }
+
+  const primary = plan[0];
+  if (!primary) throw new Error("Decision research plan has no primary step");
+  if (!byTool.has(primary.tool)) byTool.set(primary.tool, await runDecisionResearchStep(runId, symbol, sessionId, mode, primary, dependencies, clock));
+
+  const pendingContext = plan.slice(1).filter((step) => !byTool.has(step.tool));
+  const contextResults = await Promise.allSettled(pendingContext.map(async (step) => {
+    const evidence = await runDecisionResearchStep(runId, symbol, sessionId, mode, step, dependencies, clock);
+    byTool.set(step.tool, evidence);
+    return evidence;
+  }));
+  const failedIndex = contextResults.findIndex((result) => result.status === "rejected");
+  if (failedIndex >= 0) throw (contextResults[failedIndex] as PromiseRejectedResult).reason;
 
   return plan.map((step) => byTool.get(step.tool)).filter((item): item is Evidence => Boolean(item));
 }
@@ -200,11 +261,80 @@ function saveModelCall(purpose: "decision" | "chat", audit: ModelAudit, runId?: 
     .run(randomUUID(), purpose, runId ?? null, messageId ?? null, audit.provider, audit.model, audit.promptVersion, audit.inputHash, JSON.stringify(audit.request), JSON.stringify(audit.response), JSON.stringify(audit.generation), now());
 }
 
-async function executeRun(runId: string, symbol: string, sessionId: string, portfolioId: string, dependencies: RunDependencies) {
+function evidenceIdentity(evidence: Evidence): { network: string | null; address: string | null } {
+  return {
+    network: firstStringAt(evidence.data, [["network"], ["chain"], ["asset", "network"], ["asset", "chain"]])?.toLowerCase() ?? null,
+    address: firstStringAt(evidence.data, [["address"], ["contract_address"], ["mint"], ["asset", "address"], ["asset", "contract_address"], ["asset", "mint"]])?.toLowerCase() ?? null,
+  };
+}
+
+function validateExecutionQuote(evidence: Evidence, primary: Evidence, symbol: string, mode: DataMode): bigint {
+  validateResearchEvidence(evidence, { ordinal: 5, role: "execution_quote", tool: "analyze_token", args: { symbol } }, symbol, mode);
+  if (evidence.status !== "ok") throw Object.assign(new Error("A complete refreshed execution quote was not available"), { code: "EXECUTION_QUOTE_UNAVAILABLE", retryable: true });
+  const explicitCurrency = firstStringAt(evidence.data, [["currency"], ["quoteCurrency"], ["quote_currency"], ["market", "currency"], ["market", "quote_currency"]]);
+  if (explicitCurrency && explicitCurrency.toUpperCase() !== "USD") {
+    throw Object.assign(new Error(`Execution quote currency ${explicitCurrency} is not USD`), { code: "EXECUTION_QUOTE_CURRENCY_MISMATCH", retryable: false });
+  }
+  const primaryIdentity = evidenceIdentity(primary);
+  const quoteIdentity = evidenceIdentity(evidence);
+  if (primaryIdentity.network && quoteIdentity.network && primaryIdentity.network !== quoteIdentity.network) {
+    throw Object.assign(new Error("Execution quote network does not match the decision evidence"), { code: "EXECUTION_QUOTE_IDENTITY_MISMATCH", retryable: false });
+  }
+  if (primaryIdentity.address && quoteIdentity.address && primaryIdentity.address !== quoteIdentity.address) {
+    throw Object.assign(new Error("Execution quote address does not match the decision evidence"), { code: "EXECUTION_QUOTE_IDENTITY_MISMATCH", retryable: false });
+  }
+  const price = evidencePriceUsd(evidence);
+  if (price === null) throw Object.assign(new Error("Refreshed execution evidence has no valid USD price"), { code: "EXECUTION_QUOTE_PRICE_MISSING", retryable: true });
+  return BigInt(Math.round(price * 100));
+}
+
+function ensureExecutionQuoteStep(runId: string, symbol: string): ResearchStep {
+  const step: ResearchStep = { ordinal: 5, role: "execution_quote", tool: "analyze_token", args: { symbol } };
+  db.prepare("INSERT OR IGNORE INTO research_steps (id, run_id, plan_version, ordinal, role, tool, args_json, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')")
+    .run(randomUUID(), runId, DECISION_RESEARCH_PLAN_VERSION, step.ordinal, step.role, step.tool, JSON.stringify(step.args));
+  return step;
+}
+
+async function ensureExecutionQuote(runId: string, decisionId: string, symbol: string, sessionId: string, mode: DataMode, primary: Evidence, policyInput: PolicyInput, dependencies: RunDependencies, clock: () => Date): Promise<PolicyInput> {
+  if (policyInput.executionQuote) return policyInput;
+  const step = ensureExecutionQuoteStep(runId, symbol);
+  const startedAt = clock().toISOString();
+  db.prepare("UPDATE research_steps SET status='RUNNING', attempt_count=attempt_count+1, started_at=?, completed_at=NULL, evidence_id=NULL, provider_status=NULL, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+    .run(startedAt, runId, step.ordinal);
+  try {
+    const quote = await callResearchWithBudget(dependencies.research, step.tool, step.args, sessionId, "decision", mode);
+    const priceCents = validateExecutionQuote(quote, primary, symbol, mode);
+    const quantity = BigInt(policyInput.portfolio.positionQuantityMicros);
+    const cash = BigInt(policyInput.portfolio.cashCents);
+    const refreshedPositionValue = priceCents * quantity / 1_000_000n;
+    const next: PolicyInput = {
+      ...policyInput,
+      executionQuotePolicyVersion: EXECUTION_QUOTE_POLICY_VERSION,
+      executionQuote: { evidenceId: quote.id, priceCents: priceCents.toString(), asOf: quote.asOf, retrievedAt: quote.retrievedAt },
+      portfolio: { ...policyInput.portfolio, equityCents: (cash + refreshedPositionValue).toString(), positionValueCents: refreshedPositionValue.toString() },
+    };
+    transaction(() => {
+      db.prepare("INSERT INTO evidence (id, session_id, run_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, ?, 'execution_quote', ?, ?, ?, ?, ?, ?, ?)")
+        .run(quote.id, sessionId, runId, quote.tool, quote.symbol ?? null, quote.status, quote.dataMode, quote.asOf, quote.retrievedAt, JSON.stringify(quote));
+      db.prepare("UPDATE decisions SET policy_input_json=? WHERE id=?").run(JSON.stringify(next), decisionId);
+      db.prepare("UPDATE research_steps SET status='COMPLETED', completed_at=?, evidence_id=?, provider_status=?, failure_code=NULL, failure_message=NULL WHERE run_id=? AND ordinal=?")
+        .run(clock().toISOString(), quote.id, quote.status, runId, step.ordinal);
+      db.prepare("UPDATE runs SET updated_at=?, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?").run(clock().toISOString(), runId);
+    });
+    return next;
+  } catch (error) {
+    const value = error as Error & { code?: string };
+    db.prepare("UPDATE research_steps SET status='FAILED', completed_at=?, failure_code=?, failure_message=? WHERE run_id=? AND ordinal=?")
+      .run(clock().toISOString(), value.code ?? "EXECUTION_QUOTE_FAILED", value.message.slice(0, 1_000), runId, step.ordinal);
+    throw error;
+  }
+}
+
+async function executeRun(runId: string, symbol: string, sessionId: string, portfolioId: string, mode: DataMode, dependencies: RunDependencies) {
   const clock = dependencies.now ?? (() => new Date());
   let stage = "FETCHING";
   try {
-    const evidence = await collectDecisionEvidence(runId, symbol, sessionId, dependencies, clock);
+    const evidence = await collectDecisionEvidence(runId, symbol, sessionId, mode, dependencies, clock);
     db.prepare("UPDATE runs SET status='ANALYZING', updated_at=?, completed_at=NULL, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?")
       .run(clock().toISOString(), runId);
 
@@ -245,6 +375,7 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
       decisionId = randomUUID();
       policyInput = {
         researchPlanVersion: DECISION_RESEARCH_PLAN_VERSION,
+        executionQuotePolicyVersion: EXECUTION_QUOTE_POLICY_VERSION,
         criticalEvidence: { analyzeTokenId: tokenEvidence.id, deepAnalysisId: deepEvidence.id, deepAnalysisStatus: deepEvidence.status },
         referencePriceCents: priceCents.toString(), evidenceAsOf: tokenEvidence.asOf, portfolioVersion: snapshotPortfolio.version,
         portfolio: {
@@ -266,6 +397,10 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
     }
 
     stage = "APPLYING";
+    if (decision.action !== "HOLD" && policyInput.criticalEvidence?.deepAnalysisStatus === "ok") {
+      policyInput = await ensureExecutionQuote(runId, decisionId, symbol, sessionId, mode, tokenEvidence, policyInput, dependencies, clock);
+    }
+
     transaction(() => {
       dependencies.beforeApply?.();
       const existingFill = db.prepare("SELECT id FROM fills WHERE decision_id=?").get(decisionId);
@@ -276,23 +411,26 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
       }
 
       const evaluatedAt = clock();
-      const referencePriceCents = BigInt(policyInput.referencePriceCents);
+      const referencePriceCents = BigInt(policyInput.executionQuote?.priceCents ?? policyInput.referencePriceCents);
+      const referenceAsOf = policyInput.executionQuote?.asOf ?? policyInput.evidenceAsOf;
       const portfolioState = {
         cashCents: BigInt(policyInput.portfolio.cashCents), equityCents: BigInt(policyInput.portfolio.equityCents),
         positionQuantityMicros: BigInt(policyInput.portfolio.positionQuantityMicros), positionValueCents: BigInt(policyInput.portfolio.positionValueCents),
       };
       const currentPortfolio = db.prepare("SELECT version FROM portfolios WHERE id=?").get(portfolioId) as { version: number };
-      const evidenceAgeMs = evaluatedAt.getTime() - Date.parse(policyInput.evidenceAsOf);
+      const evidenceAgeMs = evaluatedAt.getTime() - Date.parse(referenceAsOf);
       const priceIsStale = !Number.isFinite(evidenceAgeMs) || evidenceAgeMs < -5_000 || evidenceAgeMs > policyInput.simulation.maxPriceAgeSeconds * 1_000;
       const portfolioChanged = currentPortfolio.version !== policyInput.portfolioVersion;
       const savedSimulationConfig = {
         feeBps: BigInt(policyInput.simulation.feeBps), slippageBps: BigInt(policyInput.simulation.slippageBps),
         maxBuyEquityBps: BigInt(policyInput.simulation.maxBuyEquityBps), maxTokenExposureBps: BigInt(policyInput.simulation.maxTokenExposureBps),
       };
-      const simulation = decision.action !== "HOLD" && priceIsStale
-        ? { outcome: "BLOCKED_STALE_PRICE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `Evidence price exceeded the ${policyInput.simulation.maxPriceAgeSeconds}-second execution freshness limit` }
-        : decision.action !== "HOLD" && policyInput.criticalEvidence !== undefined && policyInput.criticalEvidence.deepAnalysisStatus !== "ok"
-          ? { outcome: "BLOCKED_SAFETY_COVERAGE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "Deep-analysis risk coverage was not complete enough to apply a paper trade" }
+      const simulation = decision.action !== "HOLD" && policyInput.criticalEvidence !== undefined && policyInput.criticalEvidence.deepAnalysisStatus !== "ok"
+        ? { outcome: "BLOCKED_SAFETY_COVERAGE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "Deep-analysis risk coverage was not complete enough to apply a paper trade" }
+        : decision.action !== "HOLD" && priceIsStale
+          ? policyInput.executionQuote
+            ? { outcome: "SKIPPED_QUOTE_UNAVAILABLE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `No paper fill — the refreshed quote was not current within the ${policyInput.simulation.maxPriceAgeSeconds}-second limit` }
+            : { outcome: "BLOCKED_STALE_PRICE", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `Evidence price exceeded the ${policyInput.simulation.maxPriceAgeSeconds}-second execution freshness limit` }
         : decision.action !== "HOLD" && portfolioChanged
           ? { outcome: "BLOCKED_PORTFOLIO_CHANGED", action: decision.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "The paper portfolio changed after analysis; start a new run for current sizing" }
           : simulateDecision(decision.action, referencePriceCents, portfolioState, savedSimulationConfig);
@@ -317,17 +455,21 @@ async function executeRun(runId: string, symbol: string, sessionId: string, port
   } catch (error) {
     const value = error as Error & { code?: string; retryable?: boolean };
     const failedStatus = value.code === "SCHEDULE_CANCELLED" ? "CANCELLED" : "FAILED";
-    db.prepare("UPDATE runs SET status=?, updated_at=?, completed_at=?, failure_stage=?, failure_code=?, failure_message=? WHERE id=?")
+    const failureUpdate = db.prepare("UPDATE runs SET status=?, updated_at=?, completed_at=?, failure_stage=?, failure_code=?, failure_message=? WHERE id=? AND status<>'COMPLETED'")
       .run(failedStatus, clock().toISOString(), clock().toISOString(), stage, value.code ?? "RUN_FAILED", value.message.slice(0, 1_000), runId);
+    if (Number(failureUpdate.changes) === 0) {
+      const concurrent = db.prepare("SELECT status FROM runs WHERE id=? AND session_id=?").get(runId, sessionId) as { status: string } | undefined;
+      if (concurrent?.status === "COMPLETED") return getRun(runId, sessionId);
+    }
     throw error;
   }
 }
 
-export function replayRun(runId: string, sessionId?: string) {
+export function replayRun(runId: string, sessionId?: string, mode: DataMode = "live") {
   const row = db.prepare(`SELECT d.action, d.policy_input_json, f.outcome, f.quantity_micros, f.fill_price_cents,
     f.fee_cents, f.cash_delta_cents, f.reason, f.portfolio_version_at_apply, f.created_at
     FROM decisions d JOIN fills f ON f.decision_id=d.id JOIN runs r ON r.id=d.run_id
-    WHERE d.run_id=? AND (? IS NULL OR r.session_id=?)`).get(runId, sessionId ?? null, sessionId ?? null) as any;
+    WHERE d.run_id=? AND (? IS NULL OR r.session_id=?) AND (? IS NULL OR r.mode=?)`).get(runId, sessionId ?? null, sessionId ?? null, mode ?? null, mode ?? null) as any;
   if (!row) throw Object.assign(new Error("Completed decision and simulation result are required for replay"), { status: 404 });
   if (!row.policy_input_json) throw Object.assign(new Error("This legacy run predates saved replay inputs"), { status: 409 });
   const input = JSON.parse(row.policy_input_json) as PolicyInput;
@@ -340,14 +482,17 @@ export function replayRun(runId: string, sessionId?: string) {
     maxBuyEquityBps: BigInt(input.simulation.maxBuyEquityBps), maxTokenExposureBps: BigInt(input.simulation.maxTokenExposureBps),
   };
   const evaluatedAt = Date.parse(row.created_at);
-  const evidenceAgeMs = evaluatedAt - Date.parse(input.evidenceAsOf);
+  const referencePriceCents = BigInt(input.executionQuote?.priceCents ?? input.referencePriceCents);
+  const referenceAsOf = input.executionQuote?.asOf ?? input.evidenceAsOf;
+  const evidenceAgeMs = evaluatedAt - Date.parse(referenceAsOf);
   const stale = !Number.isFinite(evidenceAgeMs) || evidenceAgeMs < -5_000 || evidenceAgeMs > input.simulation.maxPriceAgeSeconds * 1_000;
   const portfolioChanged = row.portfolio_version_at_apply !== null && Number(row.portfolio_version_at_apply) !== input.portfolioVersion;
-  const referencePriceCents = BigInt(input.referencePriceCents);
-  const replayed = row.action !== "HOLD" && stale
-    ? { outcome: "BLOCKED_STALE_PRICE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `Evidence price exceeded the ${input.simulation.maxPriceAgeSeconds}-second execution freshness limit` }
-    : row.action !== "HOLD" && input.criticalEvidence?.deepAnalysisStatus !== undefined && input.criticalEvidence.deepAnalysisStatus !== "ok"
-      ? { outcome: "BLOCKED_SAFETY_COVERAGE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "Deep-analysis risk coverage was not complete enough to apply a paper trade" }
+  const replayed = row.action !== "HOLD" && input.criticalEvidence?.deepAnalysisStatus !== undefined && input.criticalEvidence.deepAnalysisStatus !== "ok"
+    ? { outcome: "BLOCKED_SAFETY_COVERAGE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "Deep-analysis risk coverage was not complete enough to apply a paper trade" }
+    : row.action !== "HOLD" && stale
+      ? input.executionQuote
+        ? { outcome: "SKIPPED_QUOTE_UNAVAILABLE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `No paper fill — the refreshed quote was not current within the ${input.simulation.maxPriceAgeSeconds}-second limit` }
+        : { outcome: "BLOCKED_STALE_PRICE", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: `Evidence price exceeded the ${input.simulation.maxPriceAgeSeconds}-second execution freshness limit` }
     : row.action !== "HOLD" && portfolioChanged
       ? { outcome: "BLOCKED_PORTFOLIO_CHANGED", action: row.action, quantityMicros: 0n, fillPriceCents: referencePriceCents, feeCents: 0n, cashDeltaCents: 0n, reason: "The paper portfolio changed after analysis; start a new run for current sizing" }
       : simulateDecision(row.action, referencePriceCents, portfolioState, savedConfig);
@@ -365,9 +510,10 @@ export function replayRun(runId: string, sessionId?: string) {
   return { runId, matches, saved: serialize(saved), replayed: serialize(replayed), portfolioMutated: false };
 }
 
-export async function createRun(symbol: string, idempotencyKey: string, dependencies: RunDependencies = { research, model }, sessionId = DEFAULT_SESSION_ID) {
+export async function createRun(symbol: string, idempotencyKey: string, dependencies: RunDependencies | undefined = undefined, sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
+  const resolvedDependencies = dependencies ?? runDependenciesForMode(mode);
   const inputHash = hash({ symbol });
-  const portfolioId = ensurePortfolio(sessionId);
+  const portfolioId = ensurePortfolio(sessionId, mode);
   const activeKey = `${portfolioId}:${idempotencyKey}`;
   const active = activeRuns.get(activeKey);
   if (active) {
@@ -380,32 +526,37 @@ export async function createRun(symbol: string, idempotencyKey: string, dependen
     if (existing?.status === "COMPLETED") return getRun(existing.id, sessionId);
     if (!existing) {
       const runId = randomUUID();
-      const createdAt = (dependencies.now ?? (() => new Date()))().toISOString();
+      const createdAt = (resolvedDependencies.now ?? (() => new Date()))().toISOString();
       db.prepare("INSERT INTO runs (id, session_id, portfolio_id, symbol, idempotency_key, input_hash, mode, research_plan_version, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'FETCHING', ?, ?)")
-        .run(runId, sessionId, portfolioId, symbol, idempotencyKey, inputHash, config.DATA_MODE, DECISION_RESEARCH_PLAN_VERSION, createdAt, createdAt);
+        .run(runId, sessionId, portfolioId, symbol, idempotencyKey, inputHash, mode, DECISION_RESEARCH_PLAN_VERSION, createdAt, createdAt);
       existing = { id: runId, input_hash: inputHash, status: "FETCHING" };
     } else {
-      db.prepare("UPDATE runs SET attempt_count=attempt_count+1, research_plan_version=COALESCE(research_plan_version, ?), updated_at=?, completed_at=NULL WHERE id=?")
-        .run(DECISION_RESEARCH_PLAN_VERSION, (dependencies.now ?? (() => new Date()))().toISOString(), existing.id);
+      db.prepare("UPDATE runs SET attempt_count=attempt_count+1, research_plan_version=?, updated_at=?, completed_at=NULL WHERE id=?")
+        .run(DECISION_RESEARCH_PLAN_VERSION, (resolvedDependencies.now ?? (() => new Date()))().toISOString(), existing.id);
     }
-    return executeRun(existing.id, symbol, sessionId, portfolioId, dependencies);
+    return executeRun(existing.id, symbol, sessionId, portfolioId, mode, resolvedDependencies);
   })();
   activeRuns.set(activeKey, { inputHash, promise: work });
   try { return await work; }
   finally { activeRuns.delete(activeKey); }
 }
 
-export function getRun(id: string, sessionId = DEFAULT_SESSION_ID) {
-  const row = db.prepare(`SELECT r.*, d.payload_json AS decision_json, f.action AS fill_action, f.outcome, f.quantity_micros, f.fill_price_cents, f.fee_cents, f.cash_delta_cents, f.reason
-    FROM runs r LEFT JOIN decisions d ON d.run_id=r.id LEFT JOIN fills f ON f.decision_id=d.id WHERE r.id=? AND r.session_id=?`).get(id, sessionId) as any;
+export function getRun(id: string, sessionId = DEFAULT_SESSION_ID, mode: DataMode = "live") {
+  const row = db.prepare(`SELECT r.*, d.payload_json AS decision_json, d.policy_input_json, f.action AS fill_action, f.outcome, f.quantity_micros, f.fill_price_cents, f.fee_cents, f.cash_delta_cents, f.reason
+    FROM runs r LEFT JOIN decisions d ON d.run_id=r.id LEFT JOIN fills f ON f.decision_id=d.id WHERE r.id=? AND r.session_id=? AND (? IS NULL OR r.mode=?)`).get(id, sessionId, mode ?? null, mode ?? null) as any;
   if (!row) throw Object.assign(new Error("Run not found"), { status: 404 });
-  const evidenceRows = db.prepare("SELECT payload_json FROM evidence WHERE run_id=? ORDER BY retrieved_at, rowid").all(id) as Array<{ payload_json: string }>;
+  const evidenceRows = db.prepare("SELECT purpose, payload_json FROM evidence WHERE run_id=? ORDER BY retrieved_at, rowid").all(id) as Array<{ purpose: string; payload_json: string }>;
   const researchRows = db.prepare("SELECT ordinal, role, tool, args_json, status, attempt_count, started_at, completed_at, evidence_id, provider_status, failure_code, failure_message FROM research_steps WHERE run_id=? ORDER BY ordinal").all(id) as any[];
+  const policyInput = row.policy_input_json ? JSON.parse(row.policy_input_json) as PolicyInput : null;
   return {
     id: row.id, symbol: row.symbol, mode: row.mode, researchPlanVersion: row.research_plan_version, status: row.status, createdAt: row.created_at, completedAt: row.completed_at,
     attemptCount: row.attempt_count, failure: row.failure_stage ? { stage: row.failure_stage, code: row.failure_code, message: row.failure_message } : null,
     decision: row.decision_json ? JSON.parse(row.decision_json) : null,
-    simulation: row.outcome ? { action: row.fill_action, outcome: row.outcome, quantity: quantityToString(BigInt(row.quantity_micros)), fillPriceUsd: centsToUsd(BigInt(row.fill_price_cents)), feeUsd: centsToUsd(BigInt(row.fee_cents)), cashDeltaUsd: centsToUsd(BigInt(row.cash_delta_cents)), reason: row.reason } : null,
+    simulation: row.outcome ? {
+      action: row.fill_action, outcome: row.outcome, quantity: quantityToString(BigInt(row.quantity_micros)), fillPriceUsd: centsToUsd(BigInt(row.fill_price_cents)), feeUsd: centsToUsd(BigInt(row.fee_cents)), cashDeltaUsd: centsToUsd(BigInt(row.cash_delta_cents)), reason: row.reason,
+      decisionReference: policyInput ? { evidenceId: policyInput.criticalEvidence?.analyzeTokenId ?? null, priceUsd: centsToUsd(BigInt(policyInput.referencePriceCents)), asOf: policyInput.evidenceAsOf } : null,
+      executionQuote: policyInput?.executionQuote ? { evidenceId: policyInput.executionQuote.evidenceId, referencePriceUsd: centsToUsd(BigInt(policyInput.executionQuote.priceCents)), asOf: policyInput.executionQuote.asOf, retrievedAt: policyInput.executionQuote.retrievedAt } : null,
+    } : null,
     researchTimeline: researchRows.map((item) => ({
       ordinal: item.ordinal, role: item.role, tool: item.tool, args: JSON.parse(item.args_json), status: item.status,
       attemptCount: item.attempt_count, startedAt: item.started_at, completedAt: item.completed_at,
@@ -413,18 +564,27 @@ export function getRun(id: string, sessionId = DEFAULT_SESSION_ID) {
       evidenceId: item.evidence_id, providerStatus: item.provider_status,
       failure: item.failure_code ? { code: item.failure_code, message: item.failure_message } : null,
     })),
-    evidence: evidenceRows.map((item) => JSON.parse(item.payload_json)),
+    evidence: evidenceRows.map((item) => ({ ...JSON.parse(item.payload_json), purpose: item.purpose })),
   };
 }
 
-export function history(sessionId = DEFAULT_SESSION_ID) {
-  const rows = db.prepare("SELECT id FROM runs WHERE session_id=? ORDER BY created_at DESC LIMIT 50").all(sessionId) as Array<{ id: string }>;
+export function history(sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
+  const rows = db.prepare("SELECT id FROM runs WHERE session_id=? AND mode=? ORDER BY created_at DESC LIMIT 50").all(sessionId, mode) as Array<{ id: string }>;
   return rows.map((row) => getRun(row.id, sessionId));
 }
 
 function numericField(data: Record<string, unknown>, keys: string[]): number | null {
   for (const key of keys) {
     const value = data[key];
+    const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function numericAt(data: Record<string, unknown>, paths: string[][]): number | null {
+  for (const path of paths) {
+    const value = nestedValue(data, path);
     const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
     if (Number.isFinite(parsed)) return parsed;
   }
@@ -441,7 +601,83 @@ function identityField(data: Record<string, unknown>, keys: string[]): string | 
 
 function evidenceWindow(evidence: Evidence): string | null {
   const explicit = identityField(evidence.data, ["window", "time_window", "change_window"]);
-  return explicit ?? (numericField(evidence.data, ["change24h", "change_24h"]) !== null ? "24h" : null);
+  return explicit ?? (numericAt(evidence.data, [["change24h"], ["change_24h"], ["performance", "h24"], ["performance", "24h"]]) !== null ? "24h" : null);
+}
+
+function nestedValue(data: Record<string, unknown>, path: string[]): unknown {
+  let value: unknown = data;
+  for (const key of path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
+function firstStringAt(data: Record<string, unknown>, paths: string[][]): string | null {
+  for (const path of paths) {
+    const value = nestedValue(data, path);
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function pointNumber(data: Record<string, unknown>, keys: string[]): number | null {
+  return numericField(data, keys);
+}
+
+function pointTimestamp(data: Record<string, unknown>): string | null {
+  const value = ["timestamp", "time", "datetime", "open_time", "close_time", "date"].map((key) => data[key]).find((item) => item !== undefined);
+  const milliseconds = typeof value === "number"
+    ? (value < 10_000_000_000 ? value * 1_000 : value)
+    : typeof value === "string" && /^\d+(?:\.\d+)?$/.test(value.trim())
+      ? (Number(value) < 10_000_000_000 ? Number(value) * 1_000 : Number(value))
+      : typeof value === "string" ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(milliseconds) ? new Date(milliseconds).toISOString() : null;
+}
+
+function chartFromEvidence(evidence: Evidence | null): MarketChart {
+  if (!evidence) return { status: "unavailable", reason: "The selected run has no saved analyze_token evidence." };
+  const candidates = [
+    ["candles"], ["ohlcv"], ["priceHistory"], ["price_history"],
+    ["market", "candles"], ["market", "ohlcv"], ["market", "priceHistory"], ["market", "price_history"],
+  ];
+  const selected = candidates.map((path) => ({ path, value: nestedValue(evidence.data, path) })).find((item) => Array.isArray(item.value));
+  if (!selected || !Array.isArray(selected.value)) return { status: "unavailable", reason: "The saved analyze_token evidence contains no timestamped candle series." };
+  const currency = firstStringAt(evidence.data, [["currency"], ["quoteCurrency"], ["quote_currency"], ["market", "currency"], ["market", "quote_currency"]]);
+  if (!currency) return { status: "unavailable", reason: "The timestamped series has no verified price currency." };
+  const explicitVolumeUnit = firstStringAt(evidence.data, [["volumeUnit"], ["volume_unit"], ["market", "volumeUnit"], ["market", "volume_unit"]]);
+  const futureBoundary = Date.parse(evidence.retrievedAt) + 5 * 60_000;
+  let sawUsdVolume = false;
+  const points = selected.value.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const record = item as Record<string, unknown>;
+    const timestamp = pointTimestamp(record);
+    const close = pointNumber(record, ["close", "close_price", "price", "price_usd"]);
+    if (!timestamp || close === null || close <= 0 || Date.parse(timestamp) > futureBoundary) return [];
+    const open = pointNumber(record, ["open", "open_price"]);
+    const high = pointNumber(record, ["high", "high_price"]);
+    const low = pointNumber(record, ["low", "low_price"]);
+    const hasValidOhlc = open !== null && high !== null && low !== null && open > 0 && high >= Math.max(open, close) && low > 0 && low <= Math.min(open, close);
+    const volumeUsd = pointNumber(record, ["volume_usd", "quote_volume_usd"]);
+    if (volumeUsd !== null) sawUsdVolume = true;
+    const volume = volumeUsd ?? pointNumber(record, ["volume", "quote_volume"]);
+    return [{ timestamp, open: hasValidOhlc ? open : null, high: hasValidOhlc ? high : null, low: hasValidOhlc ? low : null, close, volume: volume !== null && volume >= 0 ? volume : null }];
+  });
+  const ordered = [...new Map(points.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)).map((point) => [point.timestamp, point])).values()].slice(-500);
+  if (ordered.length < 2) return { status: "unavailable", reason: "The saved candle series has fewer than two valid timestamped price points." };
+  const deltas = ordered.slice(1).map((point, index) => Math.round((Date.parse(point.timestamp) - Date.parse(ordered[index]!.timestamp)) / 1_000)).filter((value) => value > 0).sort((a, b) => a - b);
+  const intervalSeconds = deltas[Math.floor(deltas.length / 2)] ?? 0;
+  const windowSeconds = Math.round((Date.parse(ordered.at(-1)!.timestamp) - Date.parse(ordered[0]!.timestamp)) / 1_000);
+  if (intervalSeconds <= 0 || windowSeconds <= 0) return { status: "unavailable", reason: "The saved candle timestamps do not form a valid positive time window." };
+  const volumeUnit = explicitVolumeUnit ?? (sawUsdVolume ? "USD" : null);
+  const normalized = volumeUnit ? ordered : ordered.map((point) => ({ ...point, volume: null }));
+  const volumeCount = normalized.filter((point) => point.volume !== null).length;
+  return marketChartSchema.parse({
+    status: "available", evidenceId: evidence.id, symbol: evidence.symbol, currency: currency.toUpperCase(), volumeUnit,
+    intervalSeconds, windowSeconds, sourcePath: selected.path.join("."), dataMode: evidence.dataMode,
+    asOf: evidence.asOf, retrievedAt: evidence.retrievedAt, points: normalized,
+    volumeCoverage: volumeCount === normalized.length ? "complete" : volumeCount > 0 ? "partial" : "unavailable",
+  });
 }
 
 function latestMark(symbol: string, sessionId: string, mode: string, valuedAt: Date) {
@@ -463,8 +699,8 @@ function latestMark(symbol: string, sessionId: string, mode: string, valuedAt: D
   return null;
 }
 
-export function portfolio(sessionId = DEFAULT_SESSION_ID, valuedAt = new Date()) {
-  const portfolioId = ensurePortfolio(sessionId);
+export function portfolio(sessionId = DEFAULT_SESSION_ID, valuedAt = new Date(), mode: DataMode = config.DATA_MODE) {
+  const portfolioId = ensurePortfolio(sessionId, mode);
   const p = db.prepare("SELECT * FROM portfolios WHERE id=?").get(portfolioId) as any;
   const holdings = db.prepare("SELECT symbol, quantity_micros, cost_basis_cents FROM holdings WHERE portfolio_id=? AND quantity_micros > 0").all(portfolioId) as any[];
   let holdingsValueCents = 0n;
@@ -519,8 +755,8 @@ function comparisonForRuns(current: ReturnType<typeof getRun>, previous: ReturnT
   }
   const currentPrice = evidencePriceUsd(currentEvidence);
   const previousPrice = evidencePriceUsd(previousEvidence);
-  const currentChange = numericField(currentEvidence.data, ["change24h", "change_24h"]);
-  const previousChange = numericField(previousEvidence.data, ["change24h", "change_24h"]);
+  const currentChange = numericAt(currentEvidence.data, [["change24h"], ["change_24h"], ["performance", "h24"], ["performance", "24h"]]);
+  const previousChange = numericAt(previousEvidence.data, [["change24h"], ["change_24h"], ["performance", "h24"], ["performance", "24h"]]);
   return {
     status: "comparable" as const, reason: null, previousRunId: previous.id,
     identity: { symbol: current.symbol, network: currentNetwork, address: currentAddress, window: currentWindow },
@@ -535,36 +771,37 @@ function comparisonForRuns(current: ReturnType<typeof getRun>, previous: ReturnT
   };
 }
 
-export function dashboardSummary(symbol: string, sessionId = DEFAULT_SESSION_ID, generatedAt = new Date()) {
-  const rows = db.prepare("SELECT id FROM runs WHERE session_id=? AND mode=? AND symbol=? ORDER BY created_at DESC, rowid DESC LIMIT 20")
-    .all(sessionId, config.DATA_MODE, symbol) as Array<{ id: string }>;
+export function dashboardSummary(symbol: string, sessionId = DEFAULT_SESSION_ID, generatedAt = new Date(), mode: DataMode = config.DATA_MODE) {
+  const portfolioId = ensurePortfolio(sessionId, mode);
+  const rows = db.prepare("SELECT id FROM runs WHERE session_id=? AND portfolio_id=? AND mode=? AND symbol=? ORDER BY created_at DESC, rowid DESC LIMIT 20")
+    .all(sessionId, portfolioId, mode, symbol) as Array<{ id: string }>;
   const latestRun = rows[0] ? getRun(rows[0].id, sessionId) : null;
   const candidates = rows.slice(1).map((row) => getRun(row.id, sessionId));
   const comparisons = latestRun ? candidates.map((candidate) => comparisonForRuns(latestRun, candidate)) : [];
   const comparison = comparisons.find((candidate) => candidate.status === "comparable") ?? comparisons[0]
     ?? (latestRun ? comparisonForRuns(latestRun, null) : { status: "unavailable" as const, reason: "No saved run exists for this asset and data mode.", previousRunId: null });
   return {
-    symbol, mode: config.DATA_MODE, generatedAt: generatedAt.toISOString(), latestRun,
+    symbol, mode, generatedAt: generatedAt.toISOString(), latestRun,
     comparison,
-    portfolio: portfolio(sessionId, generatedAt),
-    chart: { status: "unavailable" as const, reason: "No persisted timestamped candle series is available." },
+    portfolio: portfolio(sessionId, generatedAt, mode),
+    chart: chartFromEvidence(latestRun ? primaryTokenEvidence(latestRun.evidence as Evidence[]) ?? null : null),
   };
 }
 
-export function marketOverview(sessionId = DEFAULT_SESSION_ID, viewedAt = new Date()): MarketOverviewView {
+export function marketOverview(sessionId = DEFAULT_SESSION_ID, viewedAt = new Date(), mode: DataMode = config.DATA_MODE): MarketOverviewView {
   touchSession(sessionId);
   const snapshotRow = db.prepare(`SELECT e.payload_json FROM market_overview_attempts a
     JOIN evidence e ON e.id=a.evidence_id
     WHERE a.session_id=? AND a.mode=? AND a.status='COMPLETED'
-    ORDER BY a.started_at DESC, a.rowid DESC LIMIT 1`).get(sessionId, config.DATA_MODE) as { payload_json: string } | undefined;
+    ORDER BY a.started_at DESC, a.rowid DESC LIMIT 1`).get(sessionId, mode) as { payload_json: string } | undefined;
   const attempt = db.prepare(`SELECT status, started_at, completed_at, evidence_id, failure_code, failure_message
     FROM market_overview_attempts WHERE session_id=? AND mode=? ORDER BY started_at DESC, rowid DESC LIMIT 1`)
-    .get(sessionId, config.DATA_MODE) as any;
+    .get(sessionId, mode) as any;
   const snapshot = snapshotRow ? JSON.parse(snapshotRow.payload_json) as Evidence : null;
   const elapsedMs = snapshot ? viewedAt.getTime() - Date.parse(snapshot.asOf) : Number.NaN;
   const ageSeconds = Number.isFinite(elapsedMs) && elapsedMs >= -5_000 ? Math.max(0, Math.floor(elapsedMs / 1_000)) : null;
   return {
-    mode: config.DATA_MODE,
+    mode,
     generatedAt: viewedAt.toISOString(),
     maxAgeSeconds: config.MARKET_OVERVIEW_MAX_AGE_SECONDS,
     snapshot,
@@ -582,29 +819,32 @@ export function marketOverview(sessionId = DEFAULT_SESSION_ID, viewedAt = new Da
 
 export async function refreshMarketOverview(
   sessionId = DEFAULT_SESSION_ID,
-  dependencies: { research: ResearchAdapter; now?: () => Date } = { research },
+  dependencies: { research: ResearchAdapter; now?: () => Date } | undefined = undefined,
+  mode: DataMode = config.DATA_MODE,
 ): Promise<MarketOverviewView> {
-  const activeKey = `${sessionId}:${config.DATA_MODE}`;
+  const resolvedDependencies = dependencies ?? { research: researchForMode(mode) };
+  const activeKey = `${sessionId}:${mode}`;
   const active = activeMarketOverviews.get(activeKey);
   if (active) return active;
   const work = (async () => {
     touchSession(sessionId);
-    const clock = dependencies.now ?? (() => new Date());
+    const clock = resolvedDependencies.now ?? (() => new Date());
     const attemptId = randomUUID();
     db.prepare("INSERT INTO market_overview_attempts (id, session_id, mode, status, started_at) VALUES (?, ?, ?, 'FETCHING', ?)")
-      .run(attemptId, sessionId, config.DATA_MODE, clock().toISOString());
+      .run(attemptId, sessionId, mode, clock().toISOString());
     try {
-      const evidence = await callResearchWithBudget(dependencies.research, "market_overview", {}, sessionId, "market");
+      const evidence = await callResearchWithBudget(resolvedDependencies.research, "market_overview", {}, sessionId, "market", mode);
       if (evidence.tool !== "market_overview") {
         throw Object.assign(new Error(`RYO returned ${evidence.tool} while market_overview was requested`), { code: "RYO_TOOL_MISMATCH", retryable: false });
       }
+      if (evidence.dataMode !== mode) throw Object.assign(new Error(`Research returned ${evidence.dataMode} evidence while ${mode} mode was requested`), { code: "RYO_MODE_MISMATCH", retryable: false });
       transaction(() => {
         db.prepare("INSERT INTO evidence (id, session_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'market', ?, NULL, ?, ?, ?, ?, ?)")
           .run(evidence.id, sessionId, evidence.tool, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
         db.prepare("UPDATE market_overview_attempts SET status='COMPLETED', completed_at=?, evidence_id=?, failure_code=NULL, failure_message=NULL WHERE id=?")
           .run(clock().toISOString(), evidence.id, attemptId);
       });
-      return marketOverview(sessionId, clock());
+      return marketOverview(sessionId, clock(), mode);
     } catch (error) {
       const value = error as Error & { code?: string };
       db.prepare("UPDATE market_overview_attempts SET status='FAILED', completed_at=?, failure_code=?, failure_message=? WHERE id=?")
@@ -617,7 +857,7 @@ export async function refreshMarketOverview(
   finally { activeMarketOverviews.delete(activeKey); }
 }
 
-export function createConversation(symbol?: string, sessionId = DEFAULT_SESSION_ID) {
+export function createConversation(symbol?: string, sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
   touchSession(sessionId);
   const id = randomUUID();
   transaction(() => {
@@ -625,9 +865,30 @@ export function createConversation(symbol?: string, sessionId = DEFAULT_SESSION_
     if (count.count >= config.CHAT_MAX_CONVERSATIONS_PER_SESSION) {
       throw Object.assign(new Error("Conversation retention limit reached for this session"), { status: 429, code: "CHAT_CONVERSATION_LIMIT", retryable: false });
     }
-    db.prepare("INSERT INTO conversations (id, session_id, mode, symbol, created_at) VALUES (?, ?, ?, ?, ?)").run(id, sessionId, config.DATA_MODE, symbol ?? null, now());
+    db.prepare("INSERT INTO conversations (id, session_id, mode, symbol, created_at) VALUES (?, ?, ?, ?, ?)").run(id, sessionId, mode, symbol ?? null, now());
   });
-  return { id, mode: config.DATA_MODE, symbol: symbol ?? null, messages: [] };
+  return { id, mode, symbol: symbol ?? null, messages: [] };
+}
+
+export function listConversations(sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
+  touchSession(sessionId);
+  const rows = db.prepare(`SELECT c.id, c.mode, c.symbol, c.created_at,
+    COUNT(m.id) AS message_count,
+    COALESCE(MAX(COALESCE(m.updated_at, m.created_at)), c.created_at) AS updated_at
+    FROM conversations c LEFT JOIN messages m ON m.conversation_id=c.id
+    WHERE c.session_id=? AND c.mode=? GROUP BY c.id
+    ORDER BY updated_at DESC, c.rowid DESC LIMIT ?`).all(sessionId, mode, config.CHAT_MAX_CONVERSATIONS_PER_SESSION) as any[];
+  return rows.map((row) => {
+    const firstUser = db.prepare("SELECT text FROM messages WHERE conversation_id=? AND role='user' ORDER BY created_at, rowid LIMIT 1").get(row.id) as { text: string } | undefined;
+    const latest = db.prepare("SELECT role, text, status FROM messages WHERE conversation_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(row.id) as { role: string; text: string; status: string } | undefined;
+    const defaultTitle = `${row.symbol ?? "Market"} research`;
+    return {
+      id: row.id, mode: row.mode, symbol: row.symbol, createdAt: row.created_at, updatedAt: row.updated_at,
+      messageCount: Number(row.message_count),
+      title: firstUser ? firstUser.text.slice(0, 60) : defaultTitle,
+      latestMessage: latest ? { role: latest.role, text: latest.text.slice(0, 100), status: latest.status } : null,
+    };
+  });
 }
 
 async function executeChatMessage(
@@ -660,7 +921,8 @@ async function executeChatMessage(
       if (savedRyo) {
         evidence.push(JSON.parse(savedRyo.payload_json) as Evidence);
       } else {
-        const ryoEvidence = await callResearchWithBudget(dependencies.research, /compare/i.test(text) ? "compare_tokens" : /market/i.test(text) && !/token/i.test(text) ? "market_overview" : "analyze_token", /compare/i.test(text) ? { symbols: `${activeSymbol},BTC`, intent: "swing" } : /market/i.test(text) && !/token/i.test(text) ? {} : { symbol: activeSymbol }, sessionId, "chat");
+        const ryoEvidence = await callResearchWithBudget(dependencies.research, /compare/i.test(text) ? "compare_tokens" : /market/i.test(text) && !/token/i.test(text) ? "market_overview" : "analyze_token", /compare/i.test(text) ? { symbols: `${activeSymbol},BTC`, intent: "swing" } : /market/i.test(text) && !/token/i.test(text) ? {} : { symbol: activeSymbol }, sessionId, "chat", conversation.mode);
+        if (ryoEvidence.dataMode !== conversation.mode) throw Object.assign(new Error(`Research returned ${ryoEvidence.dataMode} evidence while ${conversation.mode} mode was requested`), { code: "RYO_MODE_MISMATCH", retryable: false });
         db.prepare("INSERT INTO evidence (id, message_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'chat', ?, ?, ?, ?, ?, ?, ?)")
           .run(ryoEvidence.id, userId, ryoEvidence.tool, activeSymbol, ryoEvidence.status, ryoEvidence.dataMode, ryoEvidence.asOf, ryoEvidence.retrievedAt, JSON.stringify(ryoEvidence));
         evidence.push(ryoEvidence);
@@ -689,8 +951,8 @@ async function executeChatMessage(
     const invocation = await callModelWithBudget(sessionId, "chat", () => dependencies.model.answerQuestion({ question: text, symbol: activeSymbol, evidence, history: chatHistory, requiredEvidenceIds }));
     const assistantId = randomUUID();
     transaction(() => {
-      db.prepare("INSERT INTO messages (id, conversation_id, role, text, symbol, run_id, parent_message_id, status, citations_json, created_at, updated_at) VALUES (?, ?, 'assistant', ?, ?, ?, ?, 'complete', ?, ?, ?)")
-        .run(assistantId, conversation.id, invocation.output.text, activeSymbol, runId ?? null, userId, JSON.stringify(invocation.output.citations), now(), now());
+      db.prepare("INSERT INTO messages (id, conversation_id, role, text, symbol, run_id, parent_message_id, status, citations_json, classification_json, created_at, updated_at) VALUES (?, ?, 'assistant', ?, ?, ?, ?, 'complete', ?, ?, ?, ?)")
+        .run(assistantId, conversation.id, invocation.output.text, activeSymbol, runId ?? null, userId, JSON.stringify(invocation.output.citations), JSON.stringify(invocation.output.classification), now(), now());
       db.prepare("UPDATE messages SET status='complete', updated_at=?, failure_stage=NULL, failure_code=NULL, failure_message=NULL WHERE id=?").run(now(), userId);
       saveModelCall("chat", invocation.audit, undefined, assistantId);
       db.prepare("UPDATE tavily_usage SET assistant_message_id=? WHERE user_message_id=?").run(assistantId, userId);
@@ -711,10 +973,12 @@ export async function ask(
   symbol?: string,
   runId?: string,
   sessionId = DEFAULT_SESSION_ID,
-  dependencies: ChatDependencies = { research, model, searchWeb: searchChatWeb },
+  dependencies: ChatDependencies | undefined = undefined,
+  expectedMode?: DataMode,
 ) {
-  const conversation = db.prepare("SELECT * FROM conversations WHERE id=? AND session_id=?").get(conversationId, sessionId) as any;
+  const conversation = db.prepare("SELECT * FROM conversations WHERE id=? AND session_id=? AND (? IS NULL OR mode=?)").get(conversationId, sessionId, expectedMode ?? null, expectedMode ?? null) as any;
   if (!conversation) throw Object.assign(new Error("Conversation not found"), { status: 404 });
+  const resolvedDependencies = dependencies ?? { research: researchForMode(conversation.mode), model: modelForMode(conversation.mode), searchWeb: searchChatWeb };
   const inputHash = hash({ text, symbol, runId });
   const activeKey = `${conversationId}:${idempotencyKey}`;
   const active = activeChats.get(activeKey);
@@ -747,17 +1011,17 @@ export async function ask(
       });
       userMessage = { id: userId, input_hash: inputHash, status: "researching", failure_stage: null };
     }
-    return executeChatMessage(conversation, userMessage.id, text, sessionId, dependencies, symbol, runId);
+    return executeChatMessage(conversation, userMessage.id, text, sessionId, resolvedDependencies, symbol, runId);
   })();
   activeChats.set(activeKey, { inputHash, promise: work });
   try { return await work; }
   finally { activeChats.delete(activeKey); }
 }
 
-export function conversationView(id: string, sessionId = DEFAULT_SESSION_ID) {
-  const conversation = db.prepare("SELECT * FROM conversations WHERE id=? AND session_id=?").get(id, sessionId) as any;
+export function conversationView(id: string, sessionId = DEFAULT_SESSION_ID, mode: DataMode = "live") {
+  const conversation = db.prepare("SELECT * FROM conversations WHERE id=? AND session_id=? AND (? IS NULL OR mode=?)").get(id, sessionId, mode ?? null, mode ?? null) as any;
   if (!conversation) throw Object.assign(new Error("Conversation not found"), { status: 404 });
-  const messages = db.prepare("SELECT id, role, text, symbol, run_id, status, citations_json, failure_stage, failure_code, failure_message, attempt_count, created_at, updated_at FROM messages WHERE conversation_id=? ORDER BY created_at, rowid").all(id) as any[];
+  const messages = db.prepare("SELECT id, role, text, symbol, run_id, status, citations_json, classification_json, failure_stage, failure_code, failure_message, attempt_count, created_at, updated_at FROM messages WHERE conversation_id=? ORDER BY created_at, rowid").all(id) as any[];
   return { id, mode: conversation.mode, symbol: conversation.symbol, messages: messages.map((m) => {
     const citations = JSON.parse(m.citations_json) as string[];
     const sources = citations.flatMap((evidenceId) => {
@@ -766,16 +1030,18 @@ export function conversationView(id: string, sessionId = DEFAULT_SESSION_ID) {
         OR e.run_id IN (SELECT r2.id FROM runs r2 WHERE r2.session_id=?))`).get(evidenceId, sessionId, sessionId) as { payload_json: string } | undefined;
       if (!row) return [];
       const item = JSON.parse(row.payload_json) as Evidence;
-      if (item.tool !== "tavily_search") return [{ evidenceId, kind: "ryo", title: item.summary.headline, retrievedAt: item.retrievedAt }];
+      if (item.tool !== "tavily_search") return [{ evidenceId, kind: "ryo", title: item.summary.headline, retrievedAt: item.retrievedAt, dataMode: item.dataMode }];
       const results = Array.isArray(item.data.results) ? item.data.results : [];
       return results.flatMap((result) => {
         if (!result || typeof result !== "object") return [];
         const value = result as Record<string, unknown>;
         return typeof value.title === "string" && typeof value.url === "string"
-          ? [{ evidenceId, kind: "web", title: value.title, url: value.url, publishedAt: typeof value.publishedAt === "string" ? value.publishedAt : null, retrievedAt: item.retrievedAt }]
+          ? [{ evidenceId, kind: "web", title: value.title, url: value.url, publishedAt: typeof value.publishedAt === "string" ? value.publishedAt : null, retrievedAt: item.retrievedAt, dataMode: item.dataMode }]
           : [];
       });
     });
-    return { id: m.id, role: m.role, text: m.text, symbol: m.symbol, runId: m.run_id, status: m.status, citations, sources, attemptCount: m.attempt_count, failure: m.failure_stage ? { stage: m.failure_stage, code: m.failure_code, message: m.failure_message } : null, createdAt: m.created_at, updatedAt: m.updated_at };
+    const mismatchedModes = [...new Set(sources.map((source) => source.dataMode).filter((sourceMode) => sourceMode !== conversation.mode))];
+    const integrityWarning = mismatchedModes.length ? `Legacy answer uses ${mismatchedModes.join("/").toUpperCase()} evidence inside a ${String(conversation.mode).toUpperCase()} conversation. Do not treat it as current ${String(conversation.mode).toUpperCase()} research.` : null;
+    return { id: m.id, role: m.role, text: integrityWarning ? "missing data" : m.text, symbol: m.symbol, runId: m.run_id, status: m.status, citations: integrityWarning ? [] : citations, classification: !integrityWarning && m.classification_json ? JSON.parse(m.classification_json) : null, sources: integrityWarning ? [] : sources, integrityWarning, attemptCount: m.attempt_count, failure: m.failure_stage ? { stage: m.failure_stage, code: m.failure_code, message: m.failure_message } : null, createdAt: m.created_at, updatedAt: m.updated_at };
   }) };
 }

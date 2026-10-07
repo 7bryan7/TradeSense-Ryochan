@@ -5,7 +5,7 @@ import { config } from "./config.js";
 
 mkdirSync(dirname(config.DATABASE_PATH), { recursive: true });
 export const db = new DatabaseSync(config.DATABASE_PATH);
-db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
 
 export function migrate(): void {
   db.exec(`
@@ -15,7 +15,7 @@ export function migrate(): void {
     CREATE TABLE IF NOT EXISTS portfolios (
       id TEXT PRIMARY KEY, session_id TEXT REFERENCES sessions(id), mode TEXT NOT NULL, cash_cents INTEGER NOT NULL,
       realized_pnl_cents INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL, archived_at TEXT
     );
     CREATE TABLE IF NOT EXISTS holdings (
       portfolio_id TEXT NOT NULL REFERENCES portfolios(id), symbol TEXT NOT NULL,
@@ -66,7 +66,7 @@ export function migrate(): void {
     CREATE TABLE IF NOT EXISTS messages (
       id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id), role TEXT NOT NULL,
       text TEXT NOT NULL, symbol TEXT, run_id TEXT, idempotency_key TEXT, input_hash TEXT,
-      parent_message_id TEXT, status TEXT NOT NULL, citations_json TEXT NOT NULL DEFAULT '[]',
+      parent_message_id TEXT, status TEXT NOT NULL, citations_json TEXT NOT NULL DEFAULT '[]', classification_json TEXT,
       failure_stage TEXT, failure_code TEXT, failure_message TEXT, attempt_count INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL, updated_at TEXT,
       UNIQUE(conversation_id, idempotency_key)
@@ -132,6 +132,7 @@ export function migrate(): void {
   ensureColumn("decisions", "portfolio_version", "INTEGER");
   ensureColumn("fills", "portfolio_version_at_apply", "INTEGER");
   ensureColumn("portfolios", "session_id", "TEXT");
+  ensureColumn("portfolios", "archived_at", "TEXT");
   ensureColumn("conversations", "session_id", "TEXT");
   ensureColumn("messages", "parent_message_id", "TEXT");
   ensureColumn("messages", "failure_stage", "TEXT");
@@ -139,8 +140,10 @@ export function migrate(): void {
   ensureColumn("messages", "failure_message", "TEXT");
   ensureColumn("messages", "attempt_count", "INTEGER NOT NULL DEFAULT 1");
   ensureColumn("messages", "updated_at", "TEXT");
+  ensureColumn("messages", "classification_json", "TEXT");
   db.exec(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_portfolios_session_mode ON portfolios(session_id, mode) WHERE session_id IS NOT NULL;
+    DROP INDEX IF EXISTS idx_portfolios_session_mode;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_portfolios_active_session_mode ON portfolios(session_id, mode) WHERE session_id IS NOT NULL AND archived_at IS NULL;
     CREATE INDEX IF NOT EXISTS idx_runs_session ON runs(session_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id, created_at);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_parent ON messages(parent_message_id) WHERE parent_message_id IS NOT NULL;
@@ -149,9 +152,6 @@ export function migrate(): void {
   if (!usageColumns.some((column) => column.name === "assistant_message_id")) {
     db.exec("ALTER TABLE tavily_usage ADD COLUMN assistant_message_id TEXT");
   }
-  const initialCash = Math.round(config.SIM_INITIAL_CASH * 100);
-  db.prepare("INSERT OR IGNORE INTO portfolios (id, mode, cash_cents, created_at) VALUES (?, ?, ?, ?)")
-    .run(`demo-${config.DATA_MODE}`, config.DATA_MODE, initialCash, new Date().toISOString());
 }
 
 export function transaction<T>(work: () => T): T {

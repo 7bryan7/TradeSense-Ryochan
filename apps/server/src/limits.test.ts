@@ -3,8 +3,8 @@ import { rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const databasePath = `/tmp/tradesense-limits-${process.pid}-${randomUUID()}.sqlite`;
-process.env.DATA_MODE = "fixture";
-process.env.LLM_PROVIDER = "fixture";
+process.env.DATA_MODE = "live";
+process.env.LLM_PROVIDER = "gemini";
 process.env.DATABASE_PATH = databasePath;
 
 const [database, limits, services] = await Promise.all([
