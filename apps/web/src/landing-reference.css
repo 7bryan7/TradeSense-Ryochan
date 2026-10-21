@@ -21,3 +21,26 @@
 .reference-landing .bg-radial-glow {
   background: radial-gradient(ellipse at top, rgba(56,249,151,.12), rgba(12,14,23,0) 68%);
 }
+
+/* The landing uses reference utility classes; keep its light palette scoped here. */
+:root[data-theme="light"] .reference-landing { color-scheme: light; color: var(--text); background: var(--bg); }
+:root[data-theme="light"] .reference-landing [class*="bg-[#0"],
+:root[data-theme="light"] .reference-landing [class*="bg-[#1"] { background-color: var(--panel); }
+:root[data-theme="light"] .reference-landing header.fixed { background: rgba(247,250,248,.95); border-color: var(--line); box-shadow: 0 4px 20px rgba(24,51,36,.06); }
+:root[data-theme="light"] .reference-landing [class*="text-[#FBEDE0]"],
+:root[data-theme="light"] .reference-landing [class*="text-white"],
+:root[data-theme="light"] .reference-landing [class*="text-[rgba(251,237,224"] { color: var(--text); }
+:root[data-theme="light"] .reference-landing [class*="text-slate-"],
+:root[data-theme="light"] .reference-landing [class*="text-gray-"] { color: var(--muted); }
+:root[data-theme="light"] .reference-landing [class*="text-[#38F997]"],
+:root[data-theme="light"] .reference-landing [class*="text-[#46fba1]"] { color: var(--green); }
+:root[data-theme="light"] .reference-landing [class*="text-amber-"] { color: var(--amber); }
+:root[data-theme="light"] .reference-landing [class*="text-[#00D2FF]"] { color: var(--blue); }
+:root[data-theme="light"] .reference-landing [class*="border-[rgba(251,237,224"],
+:root[data-theme="light"] .reference-landing [class*="border-white/"] { border-color: var(--line); }
+:root[data-theme="light"] .reference-landing [class*="from-[#0C0E17]"] { --tw-gradient-from: #f3f7f5 var(--tw-gradient-from-position); --tw-gradient-to: rgb(243 247 245 / 0) var(--tw-gradient-to-position); }
+:root[data-theme="light"] .reference-landing [class*="to-[#0C0E17]"] { --tw-gradient-to: #f3f7f5 var(--tw-gradient-to-position); }
+:root[data-theme="light"] .reference-landing [class*="shadow-"] { box-shadow: none; }
+:root[data-theme="light"] .reference-landing [class*="drop-shadow-"] { filter: none; }
+:root[data-theme="light"] .reference-landing video { opacity: .12; }
+:root[data-theme="light"] .reference-landing .bg-grid-pattern { background-image: linear-gradient(rgba(24,51,36,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(24,51,36,.04) 1px, transparent 1px); }

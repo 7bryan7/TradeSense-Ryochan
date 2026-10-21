@@ -6,11 +6,12 @@ import { z } from "zod";
 import { createMessageSchema, createRunSchema, dataModeSchema, tokenSymbolSchema, type DataMode } from "@tradesense/core";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
-import { ask, conversationView, createConversation, createPracticePortfolio, createRun, dashboardSummary, getRun, history, listConversations, liveModeAvailable, marketOverview, portfolio, refreshMarketOverview, replayRun, touchSession } from "./services.js";
+import { ask, conversationView, createConversation, createPracticePortfolio, createRun, dashboardSummary, getRun, history, listConversations, liveMarketChart, liveModeAvailable, marketOverview, portfolio, refreshMarketOverview, replayRun, touchSession } from "./services.js";
 import { createSchedule, listSchedules, updateSchedule } from "./scheduler.js";
 import { consumeHttpRequest } from "./limits.js";
 
 const sessionIdSchema = z.string().uuid();
+const chartRangeSchema = z.enum(["1D", "1W", "1M", "3M", "1Y"]);
 const requestMode = (value: string | undefined): DataMode => dataModeSchema.parse(value ?? config.DATA_MODE);
 
 export function createApp() {
@@ -45,7 +46,24 @@ export function createApp() {
   app.get("/api/history", (_req, res) => res.json(history(res.locals.sessionId, res.locals.mode)));
   app.get("/api/portfolio", (_req, res) => res.json(portfolio(res.locals.sessionId, new Date(), res.locals.mode)));
   app.post("/api/portfolio/new", (_req, res, next) => { try { res.status(201).json(createPracticePortfolio(res.locals.sessionId, res.locals.mode)); } catch (e) { next(e); } });
-  app.get("/api/dashboard", (req, res, next) => { try { const symbol = tokenSymbolSchema.parse(req.query.symbol ?? "SOL"); res.json(dashboardSummary(symbol, res.locals.sessionId, new Date(), res.locals.mode)); } catch (e) { next(e); } });
+  app.get("/api/dashboard", async (req, res, next) => {
+    try {
+      const symbol = tokenSymbolSchema.parse(req.query.symbol ?? "SOL");
+      const range = chartRangeSchema.parse(req.query.range ?? "1D");
+      const generatedAt = new Date();
+      const dashboard = dashboardSummary(symbol, res.locals.sessionId, generatedAt, res.locals.mode);
+      let chart = range === "1D" ? dashboard.chart : { status: "unavailable" as const, reason: `No saved ${range} chart is available.` };
+      try {
+        const publicChart = await liveMarketChart(symbol, res.locals.sessionId, generatedAt, res.locals.mode, undefined, range);
+        if (publicChart.status === "available" || chart.status === "unavailable") chart = publicChart;
+      } catch (error) {
+        if (chart.status === "unavailable") {
+          chart = { status: "unavailable", reason: error instanceof Error ? `Coinbase public candle data unavailable: ${error.message}` : "Coinbase public candle data unavailable." };
+        }
+      }
+      res.json({ ...dashboard, chart });
+    } catch (e) { next(e); }
+  });
   app.get("/api/schedules", (_req, res) => res.json(listSchedules(res.locals.sessionId, res.locals.mode)));
   app.post("/api/schedules", (req, res, next) => { try { res.status(201).json(createSchedule(req.body, res.locals.sessionId, new Date(), res.locals.mode)); } catch (e) { next(e); } });
   app.patch("/api/schedules/:id", (req, res, next) => { try { res.json(updateSchedule(req.params.id, req.body, res.locals.sessionId, new Date(), config.SCHEDULER_ENABLED, res.locals.mode)); } catch (e) { next(e); } });

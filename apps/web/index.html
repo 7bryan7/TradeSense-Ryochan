@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Apply the saved preference before the first paint. Preserve the original dark default.
+      try { document.documentElement.dataset.theme = localStorage.getItem("tradesense.theme.v1") === "light" ? "light" : "dark"; }
+      catch { document.documentElement.dataset.theme = "dark"; }
+    </script>
     <meta name="description" content="TradeSense turns RYO market evidence into explainable AI decisions and paper-only simulations." />
     <link rel="icon" href="/logo.svg" />
     <link rel="preload" href="/assets/video/hero-poster.jpg" as="image" />

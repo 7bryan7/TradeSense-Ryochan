@@ -853,3 +853,222 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: Final ESLint and diff-whitespace checks passed. Workspace typecheck and production build passed; the final browser journey rebuild also passed after subsequent source changes. All 75 unit/integration tests across 18 files passed, including non-live-envelope rejection, legacy fixture record isolation, scheduler exclusion, retained-history renewal and chat integrity. The approved local Chrome live-only missing-data journey passed (one test, 5.9 seconds; 1.1 minutes including build/startup). Production-source searches found no fixture adapter, demoUser, fixture switch, or mock telemetry references. Initial checks exposed outdated UI props/imports and tests assuming default fixture providers; corrected before passing checks. One early retention test attempted an unintended RYO network lookup and failed with ENOTFOUND before reaching the provider; explicit injection and a global offline fetch/credential guard now prevent this. Initial sandbox browser startup exited early; the approved local-server/browser rerun passed.
 - External side effects: Local builds, isolated test databases and approved localhost Chrome only, plus the failed DNS lookup noted above. No successful live RYO, Gemini, Tavily or Google request was made or verified; no provider charge was observed. No persistent user database records were deleted, no schedules enabled, no real-money execution, deployment, publication or external message occurred.
 - Outcome / next step: The running application is live-only and uses explicit missing-data states. Offline test data remains deliberately isolated from application builds. Existing non-live database records are retained for audit but inaccessible through normal live views. Restart the development server to load the new configuration. Real Google entry needs its configured client ID; complete current live-provider availability and an end-to-end live paper run remain unverified by these offline checks.
+
+### 20261007T132932Z-root-google-console-guide — Verify Google sign-in setup steps
+
+- Recorded at: 2026-10-07 13:29:32 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Provide Google Cloud Console steps for the existing frontend Google sign-in.
+- Actions: Checked Google's official Identity Services setup and Auth Platform documentation against the current callback-based component, frontend package scripts and Vite configuration. Identified that Vite has no root envDir override, so the client ID should be placed in apps/web/.env.local or exported into the process; the earlier root-.env-only guidance is insufficient for the web client. Prepared branding/audience/client/origin instructions and the exact local restart command.
+- Files: HISTORY.md only.
+- Verification: Read-only code and official-documentation inspection; no application tests needed or run.
+- External side effects: Public Google documentation fetches only; no console settings, accounts, credentials, providers or records changed.
+- Outcome / next step: User can create a Web OAuth client and configure localhost origins. Actual Google sign-in remains unverified; backend token verification remains outside this setup.
+
+### 20261007T142556Z-root-theme-toggle — Add persistent light and dark themes
+
+- Recorded at: 2026-10-07 14:25:56 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Add a functional theme toggle at the top right.
+- Actions: Added a shared accessible sun/moon button to the landing navigation and workspace top bar. Preserved dark as the initial default, saved explicit preferences in localStorage, applied them before first paint, synchronized storage changes between tabs, and kept toggling usable when storage is unavailable. Added a light palette for workspace surfaces, text, controls, status colors and dialogs, and scoped light overrides for the reference landing page and media overlays. Documented the preference and expanded the browser journey to check switching, reload persistence, landing-to-workspace continuity, keyboard operation and mobile visibility/overflow. Visually inspected the resulting light workspace screenshot and softened its empty-state background.
+- Files: Created apps/web/src/components/ThemeToggle.tsx; updated apps/web/index.html, apps/web/src/components/StudioShell.tsx, apps/web/src/components/landing/LandingNav.tsx, apps/web/src/styles.css, apps/web/src/landing-reference.css, tests/e2e/dashboard.spec.ts and README.md; appended HISTORY.md. No backend changes.
+- Verification: ESLint, workspace typecheck, production browser-test build and diff checks passed. The isolated Chrome browser journey passed in 9.8 seconds (1.3 minutes including startup), verifying the theme interactions and existing live-only missing-data flow. Inspected /tmp/tradesense-theme-light.png. The follow-up browser run after the small empty-state background adjustment was declined by the user; the final web TypeScript/Vite build and whitespace check passed. A new homepage screenshot assertion is prepared but its rerun remains unexecuted. No extra unit tests were needed for this presentation change.
+- External side effects: Local builds, isolated test database, approved localhost Chrome and local screenshot only. No real Google authentication, RYO, Gemini or Tavily calls; no user ledger, schedules, accounts, deployment or publication changed.
+- Outcome / next step: Top-right theme switching works across landing and workspace pages, persists through refresh and remains available on mobile. Final minor empty-state styling has build verification but no repeat browser verification.
+
+### 20261008T092835Z-root-remove-sidebar-card — Remove Room to Explore card
+
+- Recorded at: 2026-10-08 09:28:35 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Remove the “ROOM TO EXPLORE” card from the logged-in sidebar.
+- Actions: Removed the card from the shared sidebar navigation markup, covering desktop and mobile drawers. Preserved navigation, policy access and profile controls.
+- Files: apps/web/src/components/StudioShell.tsx; HISTORY.md.
+- Verification: Web TypeScript check and git diff --check passed. No new tests or browser run for this single static element removal.
+- External side effects: None; no backend or provider changes.
+- Outcome / next step: The card no longer renders in the logged-in interface.
+
+### 20261008T094421Z-root-overview-layout — Compact market overview and adjacent chart
+
+- Recorded at: 2026-10-08 09:44:21 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Match the supplied compact Market overview reference and use the right-hand space for graphs.
+- Actions: Reviewed the dashboard composition and chart component. Grouped the selected-asset icon/dropdown and analysis action beneath a compact heading and description. Moved the existing saved price/volume chart beside the launcher on wide screens and below it on smaller screens. Preserved paper-only messaging, live evidence and missing-data behavior, and existing theme variables. Added desktop/mobile placement checks and screenshots to the existing isolated browser journey.
+- Files: apps/web/src/components/DashboardViews.tsx; apps/web/src/styles.css; tests/e2e/dashboard.spec.ts; HISTORY.md.
+- Verification: Web TypeScript/Vite production build, targeted ESLint and git diff --check passed. The sandboxed browser test failed before running assertions because its web server exited early. Permission for an outside-sandbox rerun was declined by the user; the new browser checks and visual inspection remain unverified.
+- External side effects: Local build artifacts only; no live provider calls, backend changes, real authentication, ledger changes or deployment.
+- Outcome / next step: The requested layout is implemented. Browser visual verification remains pending.
+
+### 20261008T094933Z-root-overview-live-cards — Live chart and decision cards
+
+- Recorded at: 2026-10-08 09:49:33 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Restyle the cards beside Market overview to match the supplied chart-and-decision reference while using reliable live data.
+- Actions: Reworked the overview’s right column into a compact saved live price/volume chart with adjacent value cards and the latest paper-decision flow beneath it. The asset value and mini trend are derived from the newest points in the saved live RYO candle series; the total simulated value comes from the current server-returned paper-portfolio valuation. Preserved source age/provenance and explicit “missing data” states when either source is unavailable. Restyled the decision, outcome, path-reason and risk cards to mirror the reference and retained deterministic replay. Updated responsive layout checks for the new composition.
+- Files: apps/web/src/components/DashboardViews.tsx; apps/web/src/components/TimestampedMarketChart.tsx; apps/web/src/styles.css; tests/e2e/dashboard.spec.ts; HISTORY.md.
+- Verification: Targeted ESLint, web TypeScript/Vite production build and git diff --check passed. A temporary local browser opened successfully, but the application correctly remained on the Google-only landing gate, so the authenticated overview could not be visually inspected without signing in. The isolated browser journey was not rerun after its earlier outside-sandbox permission was declined.
+- External side effects: Local compilation and a read-only localhost landing-page visit only. No backend edits, provider calls, real authentication, ledger changes, deployment or publication.
+- Outcome / next step: The redesigned overview cards consume existing live evidence and paper-portfolio data without mock values. Authenticated visual verification remains pending.
+
+### 20261008T141033Z-root-project-summary — Summarize current project
+
+- Recorded at: 2026-10-08 14:10:33 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Provide the user with a concise summary of the current TradeSense project.
+- Actions: Read the project README, latest action-history entries, package scripts, source layout, server route surface, recent commits, and working-tree status.
+- Files: HISTORY.md.
+- Verification: Read-only inspection completed. No application tests or provider calls were run.
+- External side effects: None.
+- Outcome / next step: Summary delivered with current implementation, verification status, limitations, and uncommitted-change context.
+
+### 20261008T143744Z-root-overview-content-only — Apply template inside existing shell
+
+- Recorded at: 2026-10-08 14:37:44 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Apply the supplied Overview design only to the page content after the previous full-shell redesign was reversed; preserve the current sidebar and top bar.
+- Actions: Added a dedicated Overview content component with the reference title/actions, latest decision, six metrics, and price/volume chart. Connected it to saved live RYO chart/evidence, market overview, portfolio, and active schedule data, with explicit “missing data” states and a functional expand control. Routed only the dashboard body to the new component and removed the old dashboard panels and schedule builder from that route. Kept StudioShell unchanged, including sidebar, top bar, theme toggle, shortcuts, live badge, profile and navigation. Updated browser assertions to require the existing shell and the new body together.
+- Files: Created apps/web/src/components/OverviewPage.tsx and apps/web/src/overview-template.css; updated apps/web/src/main.tsx, tests/e2e/dashboard.spec.ts and HISTORY.md. No shell or backend files changed for this task.
+- Verification: Targeted ESLint, web TypeScript/Vite production build and git diff --check passed. Browser tests and authenticated visual inspection were not run.
+- External side effects: Local compilation only. No provider calls, authentication, ledger changes, deployment or publication.
+- Outcome / next step: The current sidebar and top bar remain intact while the Overview content uses the supplied design and live/saved application data.
+
+### 20261008T144216Z-root-flatten-overview-surface — Remove Overview gradients and glow
+
+- Recorded at: 2026-10-08 14:42:16 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Remove glow effects and gradient color from white space in the redesigned Overview content.
+- Actions: Replaced the Overview page’s tinted radial background with a full white surface, removed all box shadows and gradient fills from its controls and cards, changed the analysis action to a solid green, and replaced the chart’s gradient area with a flat pale-green fill. Scoped the workspace-main white background to the Overview content route. Sidebar and top-bar styles were not changed.
+- Files: apps/web/src/components/OverviewPage.tsx; apps/web/src/overview-template.css; HISTORY.md.
+- Verification: Confirmed no gradient, shadow or filter declarations remain in the Overview component stylesheet/markup. Targeted ESLint, web TypeScript/Vite production build and git diff --check passed. Browser visual inspection was not run.
+- External side effects: Local compilation only. No backend, provider, authentication, ledger, deployment or publication changes.
+- Outcome / next step: Overview empty space is plain white and element colors are flat, without glow or gradient effects.
+### 20261008T144444Z-root-overview-dark-mode — Complete Overview dark theme
+
+- Recorded at: 2026-10-08 14:44:44 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Implement dark mode inside the redesigned Overview content.
+- Actions: Added theme-scoped dark colors for the Overview page background, selectors, summary and metric cards, chart surfaces, borders, labels, missing-data states, chart grid/area/volume, active range control, and action states. Preserved the existing sidebar and top bar and the flat no-gradient/no-glow design. Added browser assertions for dark and light Overview backgrounds.
+- Files: `apps/web/src/overview-template.css`; `tests/e2e/dashboard.spec.ts`; `HISTORY.md`.
+- Verification: Targeted ESLint, the web TypeScript/Vite production build, and `git diff --check` passed. Confirmed no gradient, shadow, or filter declarations exist in the Overview component/CSS. Browser journey was not run.
+- External side effects: Local compilation only. No backend, provider, authentication, ledger, deployment, or publication changes.
+- Outcome / next step: Overview content now follows the existing light/dark theme toggle while preserving the unchanged shared shell.
+
+### 20261008T145118Z-root-overview-metric-hover — Add metric-card hover feedback
+
+- Recorded at: 2026-10-08 14:51:18 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Add hover effects to the six Overview metric cards: market regime, fear and greed, ETH dominance, total portfolio equity, unrealized P&L, and next analysis.
+- Actions: Added a restrained upward movement, green border and surface-color response to all six cards, plus a small icon scale response. Added matching light and dark theme colors, limited hover behavior to precise pointing devices, and disabled movement when reduced motion is requested. Preserved the flat design without gradients, glows, shadows, or filters.
+- Files: `apps/web/src/overview-template.css`; `HISTORY.md`.
+- Verification: The web TypeScript/Vite production build, targeted ESLint, and `git diff --check` passed. Confirmed the Overview stylesheet contains no gradient, box-shadow, or filter declarations. Browser visual inspection was not run.
+- External side effects: Local compilation only. No backend, provider, authentication, ledger, deployment, or publication changes.
+- Outcome / next step: The six requested metric cards now provide consistent pointer hover feedback in both themes while respecting reduced-motion preferences.
+
+### 20261008T145410Z-root-investigate-overview-chart — Diagnose missing chart data
+
+- Recorded at: 2026-10-08 14:54:10 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Explain why the Overview chart reports missing data, identify its required inputs, and outline reliable fixes.
+- Actions: Traced the chart from the Overview component through `GET /api/dashboard` to the server-side saved-evidence normalizer. Read the live SQLite database without modifying it and summarized recent persisted `analyze_token` records. Confirmed that the latest ETH evidence is live/partial and includes current market and performance fields but has no accepted timestamped candle/price-history array and no explicit chart currency. Counted 55 valid saved ETH point-in-time prices in the retained records, including 26 in the latest 24-hour period, while SOL has only one retained valid point.
+- Files: `apps/web/src/components/OverviewPage.tsx`; `apps/server/src/services.ts`; `packages/core/src/index.ts`; `packages/adapters/src/index.ts`; `README.md`; `data/tradesense.sqlite` (read-only); `HISTORY.md`.
+- Verification: Read-only source and database inspection completed. No application tests, live provider requests, or model calls were run.
+- External side effects: None. The database was opened read-only and no provider credits were consumed.
+- Outcome / next step: The chart is missing because the current RYO snapshot is not historical OHLCV data. Reliable options are to request/persist a native RYO series if the catalog supports one, construct a clearly labelled price-only series from saved RYO observations, or add a separately sourced and persisted live OHLCV adapter.
+
+### 20261008T145649Z-root-assess-blockchain-chart-source — Assess Blockchain.com API for charts
+
+- Recorded at: 2026-10-08 14:56:49 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Determine whether a Blockchain.com API key would resolve the missing Overview chart data.
+- Actions: Reviewed the current official Blockchain.com Exchange REST and WebSocket documentation. Confirmed that the REST ticker provides a current/24-hour snapshot, while the WebSocket `prices` channel supplies live OHLCV updates with supported granularities of 60, 300, 900, 3600, 21600, and 86400 seconds. The documentation does not establish a REST historical-candle backfill endpoint; symbol availability must be checked through the symbols catalog.
+- Files: `HISTORY.md` only; no application files changed.
+- Verification: Documentation review only. No API key was read, no Blockchain.com endpoint was called from the application, and no tests were run.
+- External side effects: Public official documentation was accessed. No authenticated provider request or charge occurred.
+- Outcome / next step: A key alone will not fill the chart. A Blockchain.com integration could collect and persist live candles going forward for supported markets, but immediate historical coverage still needs an explicit backfill source or the existing saved-RYO-observation fallback.
+
+### 20261008T152533Z-root-coinbase-public-chart — Integrate Coinbase public OHLCV
+
+- Recorded at: 2026-10-08 15:25:33 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Use Coinbase Exchange's public API to resolve missing historical chart data.
+- Actions: Verified the official public historic-rates contract and live ETH-USD/SOL-USD availability. Added a server-only Coinbase Exchange adapter for bounded 24-hour hourly OHLCV requests, strict response/size/interval validation, and no authentication. Persisted successful responses as session-owned `coinbase_exchange_candles` evidence with a 60-second cache. Updated the dashboard route to prefer available Coinbase candles and retain saved RYO candle fallback without allowing Coinbase data into Gemini, decision policy, execution quotes, or the paper ledger. Updated the Overview chart to show source/interval provenance and base-asset volume. Added offline adapter/cache tests, disabled public calls in Playwright, documented configuration and provider boundaries, and added environment examples.
+- Files: `.env.example`; `README.md`; `playwright.config.ts`; `packages/adapters/src/coinbase.ts`; `packages/adapters/src/coinbase.test.ts`; `packages/adapters/src/index.ts`; `apps/server/src/config.ts`; `apps/server/src/services.ts`; `apps/server/src/app.ts`; `apps/server/src/dashboard.test.ts`; `apps/web/src/components/OverviewPage.tsx`; `apps/web/src/overview-template.css`; `HISTORY.md`.
+- Verification: Full lint passed; full TypeScript/Vite production build passed; all 19 Vitest files and 78 tests passed. A temporary-database end-to-end request to `GET /api/dashboard?symbol=ETH` returned HTTP 200 with an available Coinbase chart containing 24 one-hour points and ETH volume units. `git diff --check` passed before this history entry. The Playwright browser journey did not run because the sandbox denied its localhost availability probe with `EPERM`, causing the configured web server to exit early; the failure occurred before browser assertions. Initial targeted checks also exposed and then resolved a stale built workspace export and an out-of-window mocked timestamp.
+- External side effects: Accessed Coinbase's official public documentation and made unauthenticated read-only public candle requests for ETH-USD and SOL-USD plus one temporary-database ETH dashboard verification. No API key, Coinbase account, provider charge, RYO/Gemini/Tavily call, real trade, or user portfolio mutation was involved.
+- Outcome / next step: TradeSense can now backfill and render the current 1D chart from separately attributed Coinbase public data with no key. Restart the local development process to load the new server adapter; authenticated browser visual review remains pending.
+
+### 20261008T153348Z-root-enable-chart-ranges — Enable all Overview chart ranges
+
+- Recorded at: 2026-10-08 15:33:48 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Make the disabled 1W, 1M, 3M, and 1Y Overview chart controls functional.
+- Actions: Connected every range control to the dashboard request and added stale-response protection plus an explicit loading state. Added live Coinbase windows of 1D/five-minute, 1W/hourly, 1M/six-hour, and 3M/1Y/daily candles. Kept each provider request below the 300-candle limit, split 1Y into two bounded requests, merged duplicate boundary timestamps, persisted evidence per symbol/range, and cached each range independently. Used the persisted interval/window metadata when normalizing charts. Updated range-specific chart labels, documentation, service tests, and browser assertions that all five controls are enabled and selectable.
+- Files: `apps/server/src/app.ts`; `apps/server/src/services.ts`; `apps/server/src/dashboard.test.ts`; `apps/web/src/main.tsx`; `apps/web/src/components/OverviewPage.tsx`; `apps/web/src/types.ts`; `tests/e2e/dashboard.spec.ts`; `README.md`; `HISTORY.md`.
+- Verification: Full lint and TypeScript checks passed. All 19 Vitest files and 79 tests passed. The full server/web production build and `git diff --check` passed. The added service test verifies two bounded provider calls for 1Y, separate range caching, and the 1W interval. Browser assertions were added but the Playwright journey was not rerun because its configured local server probe is blocked by the sandbox, as recorded in the preceding Coinbase chart entry.
+- External side effects: Local compilation and offline tests only. No live Coinbase, RYO, Gemini, or Tavily request was made; no API key, real trade, paper-ledger mutation, deployment, or publication was involved.
+- Outcome / next step: The Overview range selector now supports 1D, 1W, 1M, 3M, and 1Y with real public candle requests and explicit loading/missing-data states.
+
+### 20261008T154510Z-root-interactive-overview-chart — Add chart point inspector
+
+- Recorded at: 2026-10-08 15:45:10 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Make the redesigned Overview graph display prices at the mouse pointer.
+- Actions: Added a responsive pointer hit area that maps the cursor to the nearest saved candle. The graph now shows a vertical guide, selected point, and bounded tooltip with close price, observation time, and volume. The tooltip switches sides near the right edge and follows light/dark theme colors without gradients, glows, or shadows. Added equivalent keyboard inspection through focus plus Left/Right, Home, and End keys, a visible focus outline, and an assistive live announcement.
+- Files: `apps/web/src/components/OverviewPage.tsx`; `apps/web/src/overview-template.css`; `HISTORY.md`.
+- Verification: Full lint and TypeScript checks passed. All 19 Vitest files and 79 tests passed. The full server/web production build and `git diff --check` passed. A background visual attempt reached the Google-gated landing page only, so no authenticated chart visual was claimed.
+- External side effects: Opened the local application read-only in a temporary background browser tab. No sign-in, provider request, paper-ledger mutation, real trade, deployment, or publication occurred.
+- Outcome / next step: Users can inspect the nearest real candle by pointer or keyboard on every supported chart range.
+
+### 20261008T154914Z-root-remove-chart-fallback — Remove the graph missing-data card
+
+- Recorded at: 2026-10-08 15:49:14 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Remove the missing-data fallback from the Overview graph display card.
+- Actions: Removed the graph placeholder markup, explanatory fallback copy, icon import, and light/dark fallback styles. The complete chart card now renders only when a valid live candle series with renderable geometry is available; it remains absent during retrieval and when the live series is unavailable. Updated the browser assertion for the intentionally provider-disabled test environment.
+- Files: `apps/web/src/components/OverviewPage.tsx`; `apps/web/src/overview-template.css`; `tests/e2e/dashboard.spec.ts`; `HISTORY.md`.
+- Verification: Full lint and TypeScript checks passed. All 19 Vitest files and 79 tests passed. The full server/web production build and `git diff --check` passed. The Playwright browser journey was not run because its local server probe remains blocked by the sandbox.
+- External side effects: Local compilation and offline tests only. No provider request, authentication, paper-ledger mutation, real trade, deployment, or publication occurred.
+- Outcome / next step: The Overview no longer displays a graph card or “missing data” graph fallback unless usable live candles are available.
+
+### 20261008T155305Z-root-retain-empty-chart-card — Keep chart card without fallback copy
+
+- Recorded at: 2026-10-08 15:53:05 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Correct the preceding chart behavior so the card remains visible when candle data is unavailable.
+- Actions: Restored the chart card shell, all five range controls, blank plot area, and metric column for unavailable/loading states without restoring the removed missing-data message or icon. Unavailable chart-derived values render as neutral dashes; independently available market capitalization remains visible. The expand control appears only when a renderable series exists. Updated the browser assertion to require the retained empty card and enabled range controls.
+- Files: `apps/web/src/components/OverviewPage.tsx`; `apps/web/src/overview-template.css`; `tests/e2e/dashboard.spec.ts`; `HISTORY.md`.
+- Verification: Web TypeScript and production Vite build passed; full ESLint and `git diff --check` passed. The 79-test offline suite had already passed before this presentation-only correction; it was not repeated. The Playwright browser journey was not run because its local server probe remains blocked by the sandbox.
+- External side effects: Local compilation only. No provider request, authentication, paper-ledger mutation, real trade, deployment, or publication occurred.
+- Outcome / next step: The graph card now preserves the page layout and range navigation without showing a missing-data fallback when live candles are unavailable.
+
+### 20261008T160809Z-root-latest-decision-more — Link Latest Decision to AI reasoning
+
+- Recorded at: 2026-10-08 16:08:09 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Add a “More” button with an animated right arrow inside the Latest Decision card and open AI reasoning from it.
+- Actions: Added the button to the decision card, a small horizontally animated arrow, hover/focus styling for both themes, and a reduced-motion fallback. Wired the action through the existing URL/history-aware view navigator and selects the exact run displayed in Latest Decision before opening its AI reasoning page. Added a browser assertion for the dashboard-to-analysis navigation and return path.
+- Files: `apps/web/src/components/OverviewPage.tsx`; `apps/web/src/main.tsx`; `apps/web/src/overview-template.css`; `tests/e2e/dashboard.spec.ts`; `HISTORY.md`.
+- Verification: Full TypeScript and ESLint checks passed. The web TypeScript/Vite production build and `git diff --check` passed. The Playwright assertion source was updated but the browser journey was not run because its local server probe remains blocked by the sandbox.
+- External side effects: Local compilation only. No provider request, authentication, paper-ledger mutation, real trade, deployment, or publication occurred.
+- Outcome / next step: The Latest Decision card now has a responsive “More” action that opens the matching AI reasoning view.
+
+### 20261008T161640Z-root-decision-card-shade — Distinguish Latest Decision card
+
+- Recorded at: 2026-10-08 16:16:40 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Make the Latest Decision card more visible with a slight shade.
+- Actions: Applied a restrained pale-green surface and stronger green border in light mode, with a corresponding muted deep-green surface and border in dark mode. Kept the treatment flat and preserved the existing no-gradient, no-glow, and no-shadow requirement.
+- Files: `apps/web/src/overview-template.css`; `HISTORY.md`.
+- Verification: The web TypeScript/Vite production build and `git diff --check` passed. Confirmed the Overview stylesheet still contains no gradient, box-shadow, or filter declarations. No browser visual run was performed.
+- External side effects: Local compilation only. No provider request, authentication, ledger mutation, real trade, deployment, or publication occurred.
+- Outcome / next step: Latest Decision now reads as a distinct focal card in both themes without overpowering the surrounding metrics.
+
+### 20261018T104426Z-root-ryo-endpoint-check — Recheck all six live MCP tools
+
+- Recorded at: 2026-10-18 10:44:26 UTC (final live response time).
+- Agent: Codex primary agent (`/root`).
+- Task: Check whether all RYO API/MCP endpoints are currently working.
+- Actions: Inspected the current adapter, configuration contract, README, and latest history. Queried authenticated health, identity, and tool catalog, then called all six advertised tools sequentially with bounded timeouts and 11-second spacing. Used ETH for token/deep analysis, ETH/BTC for comparison, three scan candidates, and the advertised seven-day sentiment window. Retained only sanitized diagnostics in `/tmp/tradesense-ryo-endpoint-check-20261018.json`.
+- Files: `HISTORY.md` only; application source and user database were not changed.
+- Verification: Health, identity, and catalog returned HTTP 200; identity includes `tools:read` and catalog lists six tools. At 10:43–10:44 UTC, overview returned HTTP 200/live/partial with null capitalization, volume, dominance, breadth, sentiment, and movers. Scan returned HTTP 200/unknown/unavailable with zero candidates. ETH analysis returned HTTP 400 `VALIDATION_FAILED: couldn't analyze ETH right now` (trace `58d1dd86a6dd459883672fdb2a6f8909`); deep analysis returned HTTP 400/current USD market data unavailable (trace `81cdf48138104a2ea195617848aeb583`); comparison returned HTTP 400/insufficient current USD data (trace `63d2f23398314c578d3c9ce9541aaf76`). Sentiment monitoring returned HTTP 200/unknown/unavailable and an upstream-unavailable warning. General rate-limit remaining was 55–58; no 401, 403, or 429 occurred. Initial sandbox requests failed DNS resolution; approved network execution completed the checks. No application tests or model inference were run.
+- External side effects: Nine authenticated read-only RYO requests (three gateway checks and six tool calls); no Gemini/Tavily call, trade, ledger mutation, deployment, or publication.
+- Outcome / next step: RYO gateway and credentials work, but usable market observations are currently degraded across the six-tool surface. Exact upstream cause is undisclosed; the evidence does not establish gateway overload or service launch status.

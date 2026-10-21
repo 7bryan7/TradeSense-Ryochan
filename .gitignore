@@ -9,3 +9,4 @@ playwright-report/
 test-results/
 apps/web/.vite/
 *.tsbuildinfo
+clientSecret.json

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { GeminiModelAdapter, RyoRestAdapter, type ModelAdapter, type ModelAudit, type ResearchAdapter, type RyoTool } from "@tradesense/adapters";
-import { centsToUsd, evidencePriceUsd, marketChartSchema, quantityToString, simulateDecision, type DataMode, type Evidence, type MarketChart } from "@tradesense/core";
+import { CoinbaseExchangeAdapter, GeminiModelAdapter, RyoRestAdapter, type CandleMarketDataAdapter, type ModelAdapter, type ModelAudit, type ResearchAdapter, type RyoTool } from "@tradesense/adapters";
+import { centsToUsd, evidencePriceUsd, evidenceSchema, marketChartSchema, quantityToString, simulateDecision, type DataMode, type Evidence, type MarketChart } from "@tradesense/core";
 import { config } from "./config.js";
 import { db, transaction } from "./db.js";
 import { buildWebSearchQuery, needsWebSearch } from "./chat-routing.js";
@@ -9,6 +9,7 @@ import { withProviderBudget } from "./limits.js";
 
 const liveResearch: ResearchAdapter | null = config.RYO_MCP_KEY ? new RyoRestAdapter(config.RYO_MCP_URL, config.RYO_MCP_KEY) : null;
 const configuredModel: ModelAdapter | null = config.LLM_API_KEY ? new GeminiModelAdapter(config.LLM_API_KEY, config.LLM_MODEL) : null;
+const publicCandleMarket: CandleMarketDataAdapter = new CoinbaseExchangeAdapter();
 export const liveModeAvailable = Boolean(liveResearch && config.LLM_PROVIDER === "gemini" && config.LLM_API_KEY);
 
 export function researchForMode(mode: DataMode): ResearchAdapter {
@@ -666,8 +667,12 @@ function chartFromEvidence(evidence: Evidence | null): MarketChart {
   const ordered = [...new Map(points.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)).map((point) => [point.timestamp, point])).values()].slice(-500);
   if (ordered.length < 2) return { status: "unavailable", reason: "The saved candle series has fewer than two valid timestamped price points." };
   const deltas = ordered.slice(1).map((point, index) => Math.round((Date.parse(point.timestamp) - Date.parse(ordered[index]!.timestamp)) / 1_000)).filter((value) => value > 0).sort((a, b) => a - b);
-  const intervalSeconds = deltas[Math.floor(deltas.length / 2)] ?? 0;
-  const windowSeconds = Math.round((Date.parse(ordered.at(-1)!.timestamp) - Date.parse(ordered[0]!.timestamp)) / 1_000);
+  const explicitInterval = numericAt(evidence.data, [["candleIntervalSeconds"], ["candle_interval_seconds"]]);
+  const explicitWindow = numericAt(evidence.data, [["candleWindowSeconds"], ["candle_window_seconds"]]);
+  const intervalSeconds = explicitInterval !== null ? Math.round(explicitInterval) : deltas[Math.floor(deltas.length / 2)] ?? 0;
+  const windowSeconds = explicitWindow !== null
+    ? Math.round(explicitWindow)
+    : Math.round((Date.parse(ordered.at(-1)!.timestamp) - Date.parse(ordered[0]!.timestamp)) / 1_000);
   if (intervalSeconds <= 0 || windowSeconds <= 0) return { status: "unavailable", reason: "The saved candle timestamps do not form a valid positive time window." };
   const volumeUnit = explicitVolumeUnit ?? (sawUsdVolume ? "USD" : null);
   const normalized = volumeUnit ? ordered : ordered.map((point) => ({ ...point, volume: null }));
@@ -678,6 +683,70 @@ function chartFromEvidence(evidence: Evidence | null): MarketChart {
     asOf: evidence.asOf, retrievedAt: evidence.retrievedAt, points: normalized,
     volumeCoverage: volumeCount === normalized.length ? "complete" : volumeCount > 0 ? "partial" : "unavailable",
   });
+}
+
+export async function liveMarketChart(
+  symbol: string,
+  sessionId = DEFAULT_SESSION_ID,
+  requestedAt = new Date(),
+  mode: DataMode = config.DATA_MODE,
+  adapter: CandleMarketDataAdapter = publicCandleMarket,
+  range: "1D" | "1W" | "1M" | "3M" | "1Y" = "1D",
+): Promise<MarketChart> {
+  if (mode !== "live") return { status: "unavailable", reason: "Only live market chart data is supported." };
+  if (!config.COINBASE_MARKET_DATA_ENABLED) return { status: "unavailable", reason: "Public candle retrieval is disabled." };
+  touchSession(sessionId);
+  const cutoff = new Date(requestedAt.getTime() - config.COINBASE_CHART_CACHE_SECONDS * 1_000).toISOString();
+  const cachedRows = db.prepare(`SELECT payload_json FROM evidence
+    WHERE session_id=? AND purpose='chart' AND tool='coinbase_exchange_candles' AND symbol=? AND mode='live' AND retrieved_at>=?
+    ORDER BY retrieved_at DESC, rowid DESC LIMIT 10`).all(sessionId, symbol, cutoff) as Array<{ payload_json: string }>;
+  const cached = cachedRows.map((row) => JSON.parse(row.payload_json) as Evidence)
+    .find((item) => item.data.range === range);
+  if (cached) {
+    const chart = chartFromEvidence(cached);
+    return chart.status === "available" ? { ...chart, sourcePath: "Coinbase Exchange public candles" } : chart;
+  }
+
+  const rangeConfig = {
+    "1D": { windowSeconds: 86_400, granularitySeconds: 300 },
+    "1W": { windowSeconds: 7 * 86_400, granularitySeconds: 3_600 },
+    "1M": { windowSeconds: 30 * 86_400, granularitySeconds: 21_600 },
+    "3M": { windowSeconds: 90 * 86_400, granularitySeconds: 86_400 },
+    "1Y": { windowSeconds: 365 * 86_400, granularitySeconds: 86_400 },
+  }[range];
+  const end = requestedAt;
+  const start = new Date(end.getTime() - rangeConfig.windowSeconds * 1_000);
+  const maxChunkSeconds = rangeConfig.granularitySeconds * 299;
+  const parts: Evidence[] = [];
+  for (let chunkStart = start; chunkStart < end;) {
+    const chunkEnd = new Date(Math.min(end.getTime(), chunkStart.getTime() + maxChunkSeconds * 1_000));
+    const part = await adapter.candles(symbol, chunkStart, chunkEnd, rangeConfig.granularitySeconds);
+    if (part.dataMode !== "live" || part.symbol !== symbol || part.tool !== "coinbase_exchange_candles") {
+      throw Object.assign(new Error("Coinbase returned mismatched chart evidence"), { code: "COINBASE_CHART_MISMATCH", retryable: false });
+    }
+    parts.push(part);
+    chunkStart = chunkEnd;
+  }
+  const candles = [...new Map(parts.flatMap((part) => Array.isArray(part.data.candles) ? part.data.candles : [])
+    .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)))
+    .map((item) => [String(item.timestamp), item])).values()]
+    .sort((a, b) => Date.parse(String(a.timestamp)) - Date.parse(String(b.timestamp)));
+  const retrievedAt = parts.map((part) => part.retrievedAt).sort().at(-1) ?? requestedAt.toISOString();
+  const evidence = evidenceSchema.parse({
+    id: randomUUID(), tool: "coinbase_exchange_candles", symbol,
+    status: candles.length >= 2 ? "ok" : "unavailable", dataMode: "live",
+    asOf: candles.length ? String(candles.at(-1)!.timestamp) : requestedAt.toISOString(), retrievedAt,
+    data: {
+      provider: "Coinbase Exchange", productId: `${symbol}-USD`, currency: "USD", volumeUnit: symbol,
+      range, candleIntervalSeconds: rangeConfig.granularitySeconds, candleWindowSeconds: rangeConfig.windowSeconds, candles,
+    },
+    summary: { headline: `${symbol}-USD public ${range} candles`, keyPoints: [`${candles.length} timestamped Coinbase candle(s).`] },
+    warnings: candles.length >= 2 ? [] : ["Coinbase returned fewer than two candles for the requested range."],
+  });
+  db.prepare("INSERT INTO evidence (id, session_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'chart', ?, ?, ?, ?, ?, ?, ?)")
+    .run(evidence.id, sessionId, evidence.tool, symbol, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
+  const chart = chartFromEvidence(evidence);
+  return chart.status === "available" ? { ...chart, sourcePath: "Coinbase Exchange public candles" } : chart;
 }
 
 function latestMark(symbol: string, sessionId: string, mode: string, valuedAt: Date) {

@@ -1,7 +1,7 @@
 import { FixtureModelAdapter, FixtureResearchAdapter } from "../../../tests/support/providers.js";
 import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { type ResearchAdapter } from "@tradesense/adapters";
 import type { Evidence } from "@tradesense/core";
 
@@ -80,6 +80,54 @@ describe("owned dashboard summary", () => {
     expect(services.dashboardSummary("SOL", sessionId, at).chart).toEqual({
       status: "unavailable", reason: "The saved candle series has fewer than two valid timestamped price points.",
     });
+  });
+
+  it("persists and reuses bounded Coinbase public candle evidence", async () => {
+    const sessionId = randomUUID();
+    const at = new Date("2026-09-26T15:00:00.000Z");
+    const evidence = {
+      ...snapshot(110, 2, at, true),
+      tool: "coinbase_exchange_candles",
+      data: { ...snapshot(110, 2, at, true).data, provider: "Coinbase Exchange", productId: "SOL-USD" },
+    };
+    const adapter = { candles: vi.fn(async () => evidence) };
+
+    const first = await services.liveMarketChart("SOL", sessionId, at, "live", adapter);
+    const cached = await services.liveMarketChart("SOL", sessionId, new Date(at.getTime() + 30_000), "live", adapter);
+
+    expect(first).toMatchObject({ status: "available", symbol: "SOL", sourcePath: "Coinbase Exchange public candles" });
+    expect(cached).toEqual(first);
+    expect(adapter.candles).toHaveBeenCalledOnce();
+    expect((database.db.prepare("SELECT COUNT(*) AS count FROM evidence WHERE session_id=? AND purpose='chart' AND tool='coinbase_exchange_candles'").get(sessionId) as { count: number }).count).toBe(1);
+  });
+
+  it("fetches a year in bounded segments and caches it separately from other ranges", async () => {
+    const sessionId = randomUUID();
+    const at = new Date("2026-09-26T15:00:00.000Z");
+    const adapter = { candles: vi.fn(async (symbol: string, start: Date, end: Date, granularitySeconds: number): Promise<Evidence> => ({
+      id: randomUUID(), tool: "coinbase_exchange_candles", symbol, status: "ok", dataMode: "live",
+      asOf: end.toISOString(), retrievedAt: at.toISOString(),
+      data: {
+        provider: "Coinbase Exchange", productId: `${symbol}-USD`, currency: "USD", volumeUnit: symbol,
+        candleIntervalSeconds: granularitySeconds,
+        candles: [
+          { timestamp: start.toISOString(), open: 100, high: 102, low: 99, close: 101, volume: 10 },
+          { timestamp: end.toISOString(), open: 101, high: 103, low: 100, close: 102, volume: 12 },
+        ],
+      },
+      summary: { headline: `${symbol} candles`, keyPoints: [] }, warnings: [],
+    })) };
+
+    const yearly = await services.liveMarketChart("SOL", sessionId, at, "live", adapter, "1Y");
+    const yearlyCached = await services.liveMarketChart("SOL", sessionId, new Date(at.getTime() + 30_000), "live", adapter, "1Y");
+    const weekly = await services.liveMarketChart("SOL", sessionId, at, "live", adapter, "1W");
+
+    expect(yearly).toMatchObject({ status: "available", intervalSeconds: 86_400, windowSeconds: 365 * 86_400 });
+    expect(yearlyCached).toEqual(yearly);
+    expect(weekly).toMatchObject({ status: "available", intervalSeconds: 3_600, windowSeconds: 7 * 86_400 });
+    expect(adapter.candles).toHaveBeenCalledTimes(3);
+    expect(adapter.candles.mock.calls.slice(0, 2).every(([, start, end, granularity]) =>
+      (end as Date).getTime() - (start as Date).getTime() <= (granularity as number) * 299 * 1_000)).toBe(true);
   });
 
   it("compares the nested 24-hour performance field used by live RYO evidence", async () => {

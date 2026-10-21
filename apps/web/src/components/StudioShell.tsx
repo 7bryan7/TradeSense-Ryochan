@@ -3,6 +3,7 @@ import { BrainCircuit, History, Keyboard, LayoutDashboard, LogOut, Menu, Message
 import type { GoogleUser } from "../auth";
 import type { Health, ViewName } from "../types";
 import { Modal } from "./UiPrimitives";
+import { ThemeToggle } from "./ThemeToggle";
 
 const nav: Array<{ view: ViewName; label: string; icon: typeof LayoutDashboard }> = [
   { view: "dashboard", label: "Overview", icon: LayoutDashboard },
@@ -33,7 +34,6 @@ export function StudioShell({ children, user, onSignOut, view, onView, viewHref,
       {nav.slice(3).map(({ view: item, label, icon: Icon }) => <a key={item} href={viewHref(item)} aria-current={view === item ? "page" : undefined} className={view === item ? "nav-item active" : "nav-item"} onClick={(event) => followViewLink(event, item)}><Icon size={18} /><span>{label}</span></a>)}
     </nav>
     <div className="sidebar-bottom">
-      <div className="explore-card"><small>ROOM TO EXPLORE</small><strong>Real curiosity.<br />Virtual money.</strong><p>Evidence only · no real orders.</p></div>
       <button type="button" className="nav-item policy-button" onClick={() => setPolicyOpen(true)}><Settings size={18} /><span>Server policy</span></button>
       <div className="demo-user"><span className="avatar" aria-hidden="true">{user.name.slice(0, 1).toUpperCase()}</span><span><strong>{user.name}</strong><small>{user.email}</small></span><button type="button" className="signout-button" onClick={onSignOut} aria-label="Sign out"><LogOut /></button></div>
     </div>
@@ -47,7 +47,7 @@ export function StudioShell({ children, user, onSignOut, view, onView, viewHref,
       <header className="topbar">
         <button className="icon-button mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu /></button>
         <div><p>Hi, {user.name.split(/\s+/)[0]}!</p><span>Evidence-linked paper research</span></div>
-        <div className="topbar-status"><button type="button" className="icon-button shortcut-button" onClick={onShortcuts} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"><Keyboard /><span className="sr-only">Keyboard shortcuts</span></button><span className="mode-badge live" title="Live provider evidence; all trades are paper simulations"><i />LIVE DATA</span></div>
+        <div className="topbar-status"><ThemeToggle /><button type="button" className="icon-button shortcut-button" onClick={onShortcuts} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"><Keyboard /><span className="sr-only">Keyboard shortcuts</span></button><span className="mode-badge live" title="Live provider evidence; all trades are paper simulations"><i />LIVE DATA</span></div>
       </header>
       <main id="workspace-main" tabIndex={-1} className="workspace-main">{children}</main>
       <nav className="mobile-bottom" aria-label="Mobile navigation">{nav.slice(0, 5).map(({ view: item, label, icon: Icon }) => <a key={item} href={viewHref(item)} aria-current={view === item ? "page" : undefined} className={view === item ? "active" : ""} onClick={(event) => followViewLink(event, item)}><Icon /><span>{label.split(" ")[0]}</span></a>)}</nav>

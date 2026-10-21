@@ -3,15 +3,17 @@ import { createRoot } from "react-dom/client";
 import { api, conversationStorageKey, selectedDataMode, type DataMode } from "./api";
 import { clearGoogleUser, readStoredGoogleUser, storeGoogleUser, type GoogleUser } from "./auth";
 import { ChatView } from "./components/ChatView";
-import { AnalysisView, DashboardView, HistoryView, PortfolioView, ScheduleCard } from "./components/DashboardViews";
+import { AnalysisView, HistoryView, PortfolioView } from "./components/DashboardViews";
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { LandingPage } from "./components/LandingPage";
 import type { LandingDestination } from "./components/landing/LandingNav";
+import { OverviewPage } from "./components/OverviewPage";
 import { ReplayDetailsModal } from "./components/ReplayDetailsModal";
 import { StudioShell } from "./components/StudioShell";
 import { ErrorNotice } from "./components/UiPrimitives";
-import type { Chat, ConversationSummary, DashboardSummary, Health, MarketOverview, Portfolio, Replay, Run, Schedule, ViewName } from "./types";
+import type { Chat, ConversationSummary, DashboardSummary, Health, MarketChartRange, MarketOverview, Portfolio, Replay, Run, Schedule, ViewName } from "./types";
 import "./styles.css";
+import "./overview-template.css";
 
 const viewNames = new Set<ViewName>(["dashboard", "analysis", "chat", "portfolio", "history"]);
 const viewTitles: Record<ViewName, string> = { dashboard: "Market overview", analysis: "AI reasoning", chat: "Ask TradeSense", portfolio: "Paper portfolio", history: "Decision history" };
@@ -52,9 +54,9 @@ function App() {
   const [replayError, setReplayError] = useState("");
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [chartRange, setChartRange] = useState<MarketChartRange>("1D");
+  const [chartLoading, setChartLoading] = useState(false);
   const [marketOverview, setMarketOverview] = useState<MarketOverview | null>(null);
-  const [marketLoading, setMarketLoading] = useState(true);
-  const [marketBusy, setMarketBusy] = useState(false);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [health, setHealth] = useState<Health | null>(null);
   const [chat, setChat] = useState<Chat | null>(null);
@@ -66,6 +68,7 @@ function App() {
   const pendingChat = useRef<{ fingerprint: string; key: string } | null>(null);
   const chatInitialization = useRef<Promise<{ conversations: ConversationSummary[]; selected: Chat }> | null>(null);
   const replayRequest = useRef(0);
+  const dashboardRequest = useRef(0);
   const requestedRunId = useRef<string | null>(initialNavigation.runId);
   const currentView = useRef<ViewName>(initialNavigation.view);
   const ownedRuns = useRef<Run[]>([]);
@@ -73,9 +76,13 @@ function App() {
   const shortcutTimer = useRef<number | null>(null);
   currentView.current = view;
 
-  const refreshDashboard = (selectedSymbol = symbol) => {
+  const refreshDashboard = (selectedSymbol = symbol, selectedRange = chartRange) => {
+    const request = ++dashboardRequest.current;
     const requestedMode = selectedDataMode();
-    return api<DashboardSummary>(`/api/dashboard?symbol=${encodeURIComponent(selectedSymbol)}`).then((value) => { if (requestedMode === selectedDataMode() && value.mode === requestedMode) { setDashboard(value); setPortfolio(value.portfolio); } return value; });
+    setChartLoading(true);
+    return api<DashboardSummary>(`/api/dashboard?symbol=${encodeURIComponent(selectedSymbol)}&range=${encodeURIComponent(selectedRange)}`)
+      .then((value) => { if (request === dashboardRequest.current && requestedMode === selectedDataMode() && value.mode === requestedMode) { setDashboard(value); setPortfolio(value.portfolio); } return value; })
+      .finally(() => { if (request === dashboardRequest.current) setChartLoading(false); });
   };
   const refreshSchedules = () => {
     const requestedMode = selectedDataMode();
@@ -83,9 +90,9 @@ function App() {
   };
   const loadMarketOverview = async () => {
     const requestedMode = selectedDataMode();
-    setMarketLoading(true);
-    try { const value = await api<MarketOverview>("/api/market"); if (requestedMode === selectedDataMode() && value.mode === requestedMode) setMarketOverview(value); return value; }
-    finally { if (requestedMode === selectedDataMode()) setMarketLoading(false); }
+    const value = await api<MarketOverview>("/api/market");
+    if (requestedMode === selectedDataMode() && value.mode === requestedMode) setMarketOverview(value);
+    return value;
   };
   const refreshConversations = async () => {
     const requestedMode = selectedDataMode();
@@ -192,8 +199,8 @@ function App() {
 
   useEffect(() => {
     if (!entered) return;
-    void refreshDashboard(symbol).catch((value) => setError(value instanceof Error ? value.message : "Unable to load dashboard data"));
-  }, [entered, symbol, mode]);
+    void refreshDashboard(symbol, chartRange).catch((value) => setError(value instanceof Error ? value.message : "Unable to load dashboard data"));
+  }, [entered, symbol, mode, chartRange]);
 
   useEffect(() => {
     const restoreNavigation = () => {
@@ -288,18 +295,6 @@ function App() {
 
 
 
-  async function refreshMarket() {
-    setMarketBusy(true); setError("");
-    try {
-      setMarketOverview(await api<MarketOverview>("/api/market/refresh", { method: "POST", body: "{}" }));
-    } catch (value) {
-      await loadMarketOverview().catch(() => undefined);
-      setError(value instanceof Error ? value.message : "Market overview refresh failed");
-    } finally {
-      setMarketBusy(false);
-    }
-  }
-
   async function analyze() {
     setBusy(true); setError("");
     try {
@@ -328,15 +323,6 @@ function App() {
     finally { setBusy(false); void refreshConversations().catch(() => undefined); }
   }
 
-  async function addSchedule(settings: { symbols: string[]; cadenceMinutes: number; maxRunsPerDay: number }) {
-    setBusy(true); setError("");
-    try {
-      await api<Schedule>("/api/schedules", { method: "POST", body: JSON.stringify(settings) });
-      await refreshSchedules();
-    } catch (value) { setError(value instanceof Error ? value.message : "Schedule creation failed"); }
-    finally { setBusy(false); }
-  }
-
   async function startNewPortfolio() {
     if (!window.confirm("Start a new paper practice account? Current holdings and cash will be archived. Decision history and audit records will remain available.")) return;
     setBusy(true); setError("");
@@ -345,15 +331,6 @@ function App() {
       setPortfolio(next);
       await Promise.all([refreshDashboard(symbol), refreshRuns()]);
     } catch (value) { setError(value instanceof Error ? value.message : "A new practice account could not be created"); }
-    finally { setBusy(false); }
-  }
-
-  async function changeSchedule(id: string, status: Schedule["status"]) {
-    setBusy(true); setError("");
-    try {
-      await api<Schedule>(`/api/schedules/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
-      await refreshSchedules();
-    } catch (value) { setError(value instanceof Error ? value.message : "Schedule update failed"); }
     finally { setBusy(false); }
   }
 
@@ -372,7 +349,7 @@ function App() {
 
   return <StudioShell user={googleUser} onSignOut={signOut} view={view} onView={navigateView} viewHref={viewHref} onShortcuts={() => setShortcutsOpen(true)} health={health} mode={mode} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}>
     {error && <ErrorNotice message={error} onDismiss={() => setError("")} />}
-    {view === "dashboard" && <><DashboardView symbol={symbol} setSymbol={setSymbol} analyze={analyze} busy={busy} run={dashboardRun} replay={replay?.runId === dashboardRun?.id ? replay : null} portfolio={portfolio} comparison={dashboard?.symbol === symbol ? dashboard.comparison : null} chart={dashboard?.symbol === symbol ? dashboard.chart : null} marketOverview={marketOverview} marketLoading={marketLoading} marketBusy={marketBusy} refreshMarket={refreshMarket} onChat={() => openDecisionChat(dashboardRun)} onReplay={() => openReplay(dashboardRun)} /><div className="studio-page schedule-wrap"><ScheduleCard schedules={schedules} symbol={symbol} healthEnabled={Boolean(health?.schedulerEnabled)} busy={busy} addSchedule={addSchedule} changeSchedule={changeSchedule} /></div></>}
+    {view === "dashboard" && <OverviewPage symbol={symbol} setSymbol={setSymbol} analyze={analyze} onMore={() => { if (dashboardRun && dashboardRun.id !== run?.id) selectRun(dashboardRun); navigateView("analysis", dashboardRun?.id); }} busy={busy} run={dashboardRun} portfolio={portfolio} chart={dashboard?.symbol === symbol ? dashboard.chart : null} chartRange={chartRange} chartLoading={chartLoading} setChartRange={setChartRange} marketOverview={marketOverview} schedules={schedules} />}
     {view === "analysis" && <AnalysisView run={run} onChat={() => openDecisionChat()} />}
     {view === "portfolio" && <PortfolioView portfolio={portfolio} runs={runs} busy={busy} onNewPortfolio={() => { void startNewPortfolio(); }} />}
     {view === "history" && <HistoryView runs={runs} selected={run} onSelect={selectHistoryRun} onReplay={openReplay} />}

@@ -15,7 +15,7 @@ import { MarketOverviewPanel } from "./MarketOverviewPanel";
 const symbols = ["SOL", "BTC", "ETH"];
 
 function RunControl({ symbol, setSymbol, analyze, busy }: { symbol: string; setSymbol: (symbol: string) => void; analyze: () => void; busy: boolean }) {
-  return <div className="run-control"><label htmlFor="token-select"><span>Selected asset</span><select id="token-select" value={symbol} onChange={(event) => setSymbol(event.target.value)}>{symbols.map((item) => <option key={item}>{item}</option>)}</select></label><button className="button button-primary" onClick={analyze} disabled={busy}>{busy ? <RefreshCw className="spin" /> : <Play />} {busy ? "Analyzing…" : "Analyze & simulate"}</button></div>;
+  return <div className="run-control"><div className="asset-select"><span className={`asset-mark asset-mark-${symbol.toLowerCase()}`} aria-hidden="true">{symbol === "ETH" ? <svg viewBox="0 0 20 28" fill="currentColor"><path d="M10 1 1 15l9 5 9-5L10 1Zm0 21-9-5 9 10 9-10-9 5Z" /></svg> : symbol === "BTC" ? "₿" : "S"}</span><label htmlFor="token-select"><span>Selected asset</span><select id="token-select" value={symbol} onChange={(event) => setSymbol(event.target.value)}>{symbols.map((item) => <option key={item}>{item}</option>)}</select></label></div><button className="button button-primary" onClick={analyze} disabled={busy}>{busy ? <RefreshCw className="spin" /> : <Play />} {busy ? "Analyzing…" : "Analyze & simulate"}</button></div>;
 }
 
 function TokenRail({ symbol, setSymbol }: { symbol: string; setSymbol: (symbol: string) => void }) {
@@ -80,8 +80,8 @@ function DecisionSnapshot({ run, onChat, onReplay }: { run: Run | null; onChat: 
     <header><div><p className="eyebrow">LATEST PAPER DECISION</p><h2 id="decision-snapshot-heading">The result at a glance</h2></div>{run && <StatusBadge value={run.status} />}</header>
     <div className="decision-snapshot-grid">
       <article className="snapshot-action"><small>DECISION</small><strong>{run?.decision?.action ?? (run?.status === "FAILED" ? "FAILED" : "missing data")}</strong><span>{run?.decision ? `${run.decision.confidence} confidence` : "Run an analysis to begin"}</span></article>
-      <article><small>PAPER OUTCOME</small><strong>{prettyOutcome(run?.simulation?.outcome)}</strong><span>{run?.simulation?.reason ?? "No simulated fill has been evaluated."}</span></article>
-      <article><small>MAIN REASON</small><strong>{evidence?.summary.headline ?? run?.decision?.summary ?? run?.failure?.message ?? "missing data"}</strong><span>{evidence ? observedLabel(evidence.asOf) : "missing data"}</span></article>
+      <article><small>OUTCOME</small><strong>{prettyOutcome(run?.simulation?.outcome)}</strong><span>{run?.simulation?.reason ?? "No simulated fill has been evaluated."}</span></article>
+      <article><small>PATH REASON</small><strong>{evidence?.summary.headline ?? run?.decision?.summary ?? run?.failure?.message ?? "missing data"}</strong><span>{evidence ? observedLabel(evidence.asOf) : "missing data"}</span></article>
       <article className="snapshot-risk"><small>STRONGEST RISK</small><strong>{risk}</strong><span>{run?.decision?.missingData[0] ?? "See the evidence trail for full coverage."}</span></article>
     </div>
     <footer><span>Paper only · no wallet or real funds</span><div><button type="button" className="text-button" onClick={onChat} disabled={!run?.decision}>Ask why <ArrowRight /></button><button type="button" className="text-button" onClick={onReplay} disabled={!run?.simulation}>Verify replay <ArrowRight /></button></div></footer>
@@ -98,14 +98,21 @@ function SimulationAside({ run, onChat }: { run: Run | null; onChat: () => void 
 
 export function DashboardView({ symbol, setSymbol, analyze, busy, run, replay, portfolio, comparison, chart, marketOverview, marketLoading, marketBusy, refreshMarket, onChat, onReplay }: { symbol: string; setSymbol: (symbol: string) => void; analyze: () => void; busy: boolean; run: Run | null; replay: Replay | null; portfolio: Portfolio | null; comparison: DashboardComparison | null; chart: MarketChart | null; marketOverview: MarketOverview | null; marketLoading: boolean; marketBusy: boolean; refreshMarket: () => void; onChat: () => void; onReplay: () => void }) {
   return <div className="studio-page">
-    <PageIntro className="dashboard-intro" eyebrow="A CLEARER VIEW OF THE MARKET" title="Market overview" description="Choose an asset. Review the evidence. Understand the paper outcome."><RunControl symbol={symbol} setSymbol={setSymbol} analyze={analyze} busy={busy} /></PageIntro>
-    <div className="practice-notice"><ShieldCheck /><span><strong>Practice environment</strong>No wallet. No real funds. All fills are simulated.</span></div>
-    <DecisionSnapshot run={run} onChat={onChat} onReplay={onReplay} />
+    <div className="overview-top-grid">
+      <div className="overview-launch">
+        <PageIntro className="dashboard-intro" eyebrow="A CLEARER VIEW OF THE MARKET" title="Market overview" description="Choose an asset. Review the evidence. Understand the paper outcome."><RunControl symbol={symbol} setSymbol={setSymbol} analyze={analyze} busy={busy} /></PageIntro>
+        <div className="practice-notice"><ShieldCheck /><span><strong>Practice environment</strong>No wallet. No real funds. All fills are simulated.</span></div>
+      </div>
+      <div className="overview-insight-stack">
+        <TimestampedMarketChart chart={chart} symbol={symbol} portfolio={portfolio} compact />
+        <DecisionSnapshot run={run} onChat={onChat} onReplay={onReplay} />
+      </div>
+    </div>
     <MarketOverviewPanel overview={marketOverview} loading={marketLoading} busy={marketBusy} onRefresh={refreshMarket} onSelectSymbol={setSymbol} />
     <RunWorkflow run={run} requestPending={busy} />
     <TokenRail symbol={symbol} setSymbol={setSymbol} />
     <ComparisonStrip comparison={comparison} />
-    <div className="dashboard-layout"><div className="dashboard-main"><TimestampedMarketChart chart={chart} symbol={symbol} /><DecisionBrief run={run} replay={replay} onReplay={onReplay} /></div><aside className="dashboard-aside"><SimulationAside run={run} onChat={onChat} /><PortfolioAside portfolio={portfolio} /></aside></div>
+    <div className="dashboard-layout"><div className="dashboard-main"><DecisionBrief run={run} replay={replay} onReplay={onReplay} /></div><aside className="dashboard-aside"><SimulationAside run={run} onChat={onChat} /><PortfolioAside portfolio={portfolio} /></aside></div>
   </div>;
 }
 

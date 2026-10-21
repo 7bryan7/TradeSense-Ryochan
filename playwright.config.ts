@@ -23,6 +23,7 @@ export default defineConfig({
       VITE_GOOGLE_CLIENT_ID: "tradesense-test.apps.googleusercontent.com",
       SCHEDULER_ENABLED: "true",
       SCHEDULER_TICK_MS: "1000",
+      COINBASE_MARKET_DATA_ENABLED: "false",
     },
   },
 });

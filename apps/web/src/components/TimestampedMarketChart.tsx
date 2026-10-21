@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { BarChart3, LineChart } from "lucide-react";
+import { money, observedLabel } from "../api";
 import { formatCompactNumber, formatDateTime } from "../format";
-import type { MarketChart } from "../types";
+import type { MarketChart, Portfolio } from "../types";
 import { StatePanel } from "./UiPrimitives";
 
 const WIDTH = 760;
@@ -23,9 +24,9 @@ function price(value: number, currency: string) {
   catch { return `${value.toLocaleString()} ${currency}`; }
 }
 
-const compact = (value: number, unit: string | null) => `${formatCompactNumber(value)}${unit ? ` ${unit}` : ""}`;
+const compactValue = (value: number, unit: string | null) => `${formatCompactNumber(value)}${unit ? ` ${unit}` : ""}`;
 
-export function TimestampedMarketChart({ chart, symbol }: { chart: MarketChart | null; symbol: string }) {
+export function TimestampedMarketChart({ chart, symbol, portfolio = null, compact = false }: { chart: MarketChart | null; symbol: string; portfolio?: Portfolio | null; compact?: boolean }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const geometry = useMemo(() => {
     if (!chart || chart.status !== "available") return null;
@@ -43,11 +44,16 @@ export function TimestampedMarketChart({ chart, symbol }: { chart: MarketChart |
     return { min, max, rawMin, rawMax, maxVolume, x, y, pricePath, areaPath };
   }, [chart]);
 
+  const portfolioValue = portfolio?.valuation.totalEquityUsd ?? undefined;
+
   if (!chart || chart.status === "unavailable" || !geometry) {
     const unavailableReason = !chart ? "Run an analysis to load persisted timestamped evidence." : chart.status === "unavailable" ? chart.reason : "The saved series could not be rendered.";
-    return <section className="glass-card chart-card chart-card-unavailable" aria-labelledby="snapshot-chart-title">
+    return <section className={`glass-card chart-card chart-card-unavailable${compact ? " overview-market-card" : ""}`} aria-labelledby="snapshot-chart-title">
       <div className="card-heading"><div><p className="eyebrow">TIMESTAMPED MARKET CHART</p><h2 id="snapshot-chart-title">{symbol} price and volume</h2></div><span className="subtle-pill">missing data</span></div>
-      <div className="chart-placeholder"><div className="chart-grid" aria-hidden="true"><span /><span /><span /><span /></div><StatePanel compact kind="unavailable" icon={LineChart} title="missing data" text={unavailableReason} /></div>
+      <div className={compact ? "overview-chart-body" : undefined}>
+        <div className="chart-placeholder"><div className="chart-grid" aria-hidden="true"><span /><span /><span /><span /></div><StatePanel compact kind="unavailable" icon={LineChart} title="missing data" text={unavailableReason} /></div>
+        {compact && <aside className="overview-live-values" aria-label="Current saved values"><article><small>Total simulated value</small><strong>{money(portfolioValue)}</strong><span>{portfolio ? `${portfolio.valuation.status} paper valuation` : "missing data"}</span></article><article><small>{symbol} live asset value</small><strong>missing data</strong><span>No saved live series</span></article></aside>}
+      </div>
     </section>;
   }
 
@@ -58,10 +64,16 @@ export function TimestampedMarketChart({ chart, symbol }: { chart: MarketChart |
   const change = ((last.close - first.close) / first.close) * 100;
   const barWidth = Math.max(2, Math.min(14, (WIDTH - 40) / chart.points.length * 0.58));
   const priceTicks = Array.from({ length: 5 }, (_, index) => geometry.max - index / 4 * (geometry.max - geometry.min));
+  const miniPoints = chart.points.slice(-18);
+  const miniMin = Math.min(...miniPoints.map((point) => point.close));
+  const miniMax = Math.max(...miniPoints.map((point) => point.close));
+  const miniRange = Math.max(miniMax - miniMin, miniMax * .001, .000001);
+  const miniPath = miniPoints.map((point, index) => `${index ? "L" : "M"}${(index / Math.max(1, miniPoints.length - 1) * 108 + 1).toFixed(2)},${(31 - (point.close - miniMin) / miniRange * 27).toFixed(2)}`).join(" ");
 
-  return <section className="glass-card chart-card market-chart" aria-labelledby="snapshot-chart-title">
+  return <section className={`glass-card chart-card market-chart${compact ? " overview-market-card" : ""}`} aria-labelledby="snapshot-chart-title">
     <div className="card-heading"><div><p className="eyebrow">TIMESTAMPED MARKET CHART</p><h2 id="snapshot-chart-title">{chart.symbol} price and volume</h2></div><span className="subtle-pill">{chart.points.length} × {duration(chart.intervalSeconds)} points</span></div>
-    <div className="chart-summary" aria-label="Chart summary"><div><small>WINDOW</small><strong>{duration(chart.windowSeconds)}</strong></div><div><small>PERIOD CHANGE</small><strong className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</strong></div><div><small>CLOSE LOW / HIGH</small><strong>{price(geometry.rawMin, chart.currency)} / {price(geometry.rawMax, chart.currency)}</strong></div><div><small>VOLUME COVERAGE</small><strong>{chart.volumeCoverage}</strong></div></div>
+    {!compact && <div className="chart-summary" aria-label="Chart summary"><div><small>WINDOW</small><strong>{duration(chart.windowSeconds)}</strong></div><div><small>PERIOD CHANGE</small><strong className={change >= 0 ? "positive" : "negative"}>{change >= 0 ? "+" : ""}{change.toFixed(2)}%</strong></div><div><small>CLOSE LOW / HIGH</small><strong>{price(geometry.rawMin, chart.currency)} / {price(geometry.rawMax, chart.currency)}</strong></div><div><small>VOLUME COVERAGE</small><strong>{chart.volumeCoverage}</strong></div></div>}
+    <div className={compact ? "overview-chart-body" : undefined}>
     <div className="market-chart-frame">
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-labelledby="market-chart-svg-title market-chart-svg-desc" onMouseLeave={() => setHovered(null)}>
         <title id="market-chart-svg-title">{chart.symbol} timestamped close price and volume</title>
@@ -77,9 +89,14 @@ export function TimestampedMarketChart({ chart, symbol }: { chart: MarketChart |
         <text className="volume-label" x="25" y={VOLUME_TOP - 7}>VOLUME · {chart.volumeUnit ?? "UNIT UNAVAILABLE"}</text>
         <line className="chart-cursor" x1={geometry.x(selectedIndex)} x2={geometry.x(selectedIndex)} y1={PRICE_TOP} y2={VOLUME_BOTTOM} />
         <circle className="chart-selected-point" cx={geometry.x(selectedIndex)} cy={geometry.y(selected.close)} r="4" />
-        {chart.points.map((point, index) => <circle className="chart-hit-point" key={`hit-${point.timestamp}`} cx={geometry.x(index)} cy={geometry.y(point.close)} r="11" tabIndex={0} role="button" aria-label={`${formatDateTime(point.timestamp)}: close ${price(point.close, chart.currency)}${point.volume === null ? "" : `, volume ${compact(point.volume, chart.volumeUnit)}`}`} onMouseEnter={() => setHovered(index)} onFocus={() => setHovered(index)} />)}
+        {chart.points.map((point, index) => <circle className="chart-hit-point" key={`hit-${point.timestamp}`} cx={geometry.x(index)} cy={geometry.y(point.close)} r="11" tabIndex={0} role="button" aria-label={`${formatDateTime(point.timestamp)}: close ${price(point.close, chart.currency)}${point.volume === null ? "" : `, volume ${compactValue(point.volume, chart.volumeUnit)}`}`} onMouseEnter={() => setHovered(index)} onFocus={() => setHovered(index)} />)}
       </svg>
-      <div className="chart-inspector" aria-live="polite"><span><small>TIME</small><strong>{formatDateTime(selected.timestamp)}</strong></span><span><small>CLOSE</small><strong>{price(selected.close, chart.currency)}</strong></span><span><small>OHLC</small><strong>{selected.open === null ? "missing data" : `${price(selected.open, chart.currency)} · ${price(selected.high!, chart.currency)} · ${price(selected.low!, chart.currency)}`}</strong></span><span><small>VOLUME</small><strong>{selected.volume === null ? "missing data" : compact(selected.volume, chart.volumeUnit)}</strong></span></div>
+      {!compact && <div className="chart-inspector" aria-live="polite"><span><small>TIME</small><strong>{formatDateTime(selected.timestamp)}</strong></span><span><small>CLOSE</small><strong>{price(selected.close, chart.currency)}</strong></span><span><small>OHLC</small><strong>{selected.open === null ? "missing data" : `${price(selected.open, chart.currency)} · ${price(selected.high!, chart.currency)} · ${price(selected.low!, chart.currency)}`}</strong></span><span><small>VOLUME</small><strong>{selected.volume === null ? "missing data" : compactValue(selected.volume, chart.volumeUnit)}</strong></span></div>}
+    </div>
+    {compact && <aside className="overview-live-values" aria-label="Current saved values">
+      <article><small>Total simulated value</small><strong>{money(portfolioValue)}</strong><span>{portfolio ? `${portfolio.valuation.status} · ${formatDateTime(portfolio.valuation.valuedAt)}` : "missing data"}</span></article>
+      <article><div><small>{chart.symbol} live asset value</small><strong>{price(last.close, chart.currency)}</strong><span>{observedLabel(chart.asOf)} · saved live evidence</span></div><svg viewBox="0 0 110 34" role="img" aria-label={`${chart.symbol} recent saved price trend`}><path d={miniPath} /></svg></article>
+    </aside>}
     </div>
     <footer><span><BarChart3 /> Saved {chart.sourcePath} · {chart.dataMode} · evidence {chart.evidenceId.slice(0, 8)}</span><span>{formatDateTime(first.timestamp)} → {formatDateTime(last.timestamp)}</span></footer>
   </section>;

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export * from "./model.js";
 export * from "./tavily.js";
+export * from "./coinbase.js";
 
 export type RyoTool = "market_overview" | "scan_market" | "analyze_token" | "deep_analysis" | "compare_tokens" | "monitor_market_sentiment_shift";
 

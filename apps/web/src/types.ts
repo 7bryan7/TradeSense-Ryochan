@@ -111,6 +111,7 @@ export type DashboardSummary = {
 };
 
 export type MarketChartPoint = { timestamp: string; open: number | null; high: number | null; low: number | null; close: number; volume: number | null };
+export type MarketChartRange = "1D" | "1W" | "1M" | "3M" | "1Y";
 export type MarketChart = { status: "unavailable"; reason: string } | {
   status: "available"; evidenceId: string; symbol: string; currency: string; volumeUnit: string | null;
   intervalSeconds: number; windowSeconds: number; sourcePath: string; dataMode: string; asOf: string; retrievedAt: string;

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Menu, X } from 'lucide-react';
 import type { ViewName } from '../../types';
+import { ThemeToggle } from '../ThemeToggle';
 
 export type LandingDestination = ViewName | 'candidates';
 
@@ -43,6 +44,7 @@ export const LandingNav: React.FC<{ onSignIn: (destination?: LandingDestination)
           {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[rgba(251,237,224,0.72)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-all duration-200">{label}</button>)}
         </nav>
         <div className="flex items-center gap-2.5">
+          <ThemeToggle />
           <button type="button" onClick={() => openSignIn()} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] hover:bg-[#1C2030] hover:border-[#38F997]/40 transition-colors"><GoogleIcon /><span>Sign in</span></button>
           <button type="button" onClick={() => openSignIn('dashboard')} className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-[#38F997] text-[#0C0E17] hover:bg-[#46fba1] transition-colors"><span>Launch App</span><ArrowRight className="w-3.5 h-3.5" /></button>
           <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} aria-label="Toggle navigation menu" className="md:hidden p-2 rounded-lg text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-colors">{mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
