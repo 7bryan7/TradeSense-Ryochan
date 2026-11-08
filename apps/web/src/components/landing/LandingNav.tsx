@@ -39,8 +39,8 @@ export const LandingNav: React.FC<{ onSignIn: (destination?: LandingDestination)
           <img className="h-7 w-7 rounded-lg object-cover sm:h-8 sm:w-8" src="/assets/brand-logo.png" alt="" />
           <span className="font-bold text-sm sm:text-base tracking-tight text-[#FBEDE0] group-hover:text-white transition-colors">TradeSense</span>
         </button>
-        <nav className="hidden lg:flex items-center gap-1 lg:gap-2" aria-label="Landing navigation">
-          {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[rgba(251,237,224,0.72)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-all duration-200">{label}</button>)}
+        <nav className="hidden lg:flex items-center gap-2 xl:gap-3" aria-label="Landing navigation">
+          {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="landing-nav-link text-xs font-semibold text-[rgba(251,237,224,0.72)] hover:text-[#FBEDE0] hover:bg-white/[0.08] hover:border-[rgba(251,237,224,0.18)] transition-all duration-200">{label}</button>)}
         </nav>
         <div className="flex items-center gap-2.5">
           <button type="button" onClick={() => openSignIn()} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] hover:bg-[#1C2030] hover:border-[#38F997]/40 transition-colors"><GoogleIcon /><span>Sign in</span></button>

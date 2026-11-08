@@ -1325,3 +1325,25 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Refreshed landing browser snapshot no longer contains a theme toggle; StudioShell still renders ThemeToggle.
 - External side effects: Local browser inspection only. No provider calls, deployment, or publication.
 - Outcome / next step: Landing page no longer exposes theme switching, while the signed-in workspace retains it.
+
+### 20261108T051100Z-root-landing-nav-spacing — Improve landing navigation spacing
+
+- Recorded at: 2026-11-08 05:11:00 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Add proper spacing between landing navigation elements and inside their hover borders.
+- Actions: Increased desktop navigation gaps, added larger internal button padding, reserved transparent border space to prevent hover layout shift, and added a subtle visible hover border.
+- Files: apps/web/src/components/landing/LandingNav.tsx; HISTORY.md.
+- Verification: Pending targeted typecheck/lint and browser hover inspection.
+- External side effects: None.
+- Outcome / next step: Verify the refreshed landing header at desktop width and confirm hover targets remain readable and evenly spaced.
+
+### 20261108T051402Z-root-landing-nav-spacing-verified — Verify landing navigation spacing
+
+- Recorded at: 2026-11-08 05:14:02 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Complete verification of the landing navigation spacing refinement.
+- Actions: Corrected the landing-specific button reset interaction with explicit scoped spacing and border rules, then inspected the live desktop hover state.
+- Files: apps/web/src/components/landing/LandingNav.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser inspection measured 14.4px navigation gap, 9.6px vertical/19.2px horizontal internal padding, and a visible rgba hover border without layout shift.
+- External side effects: Local browser inspection only. No provider calls, deployment, or publication.
+- Outcome / next step: Landing navigation spacing and hover borders are verified.
