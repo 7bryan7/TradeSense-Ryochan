@@ -1347,3 +1347,14 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser inspection measured 14.4px navigation gap, 9.6px vertical/19.2px horizontal internal padding, and a visible rgba hover border without layout shift.
 - External side effects: Local browser inspection only. No provider calls, deployment, or publication.
 - Outcome / next step: Landing navigation spacing and hover borders are verified.
+
+### 20261108T055202Z-root-ryo-endpoint-check — Check all RYO MCP endpoints
+
+- Recorded at: 2026-11-08 05:52:02 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Check the authenticated RYO MCP gateway and all six documented tool endpoints.
+- Actions: Built the current packages, queried `/tools`, `/health`, and `/whoami`, then called `market_overview`, `scan_market`, `analyze_token`, `deep_analysis`, `compare_tokens`, and `monitor_market_sentiment_shift` sequentially to avoid the documented fanout limit.
+- Files: HISTORY.md.
+- Verification: Metadata checks returned HTTP 200; health reported six tools; identity reported the six expected tool permissions and a credential expiry in December 2026. All six tool calls were rejected with `MCP call allowance exhausted`, so no live evidence envelope was returned.
+- External side effects: Six bounded RYO endpoint attempts; no model call, ledger mutation, deployment, or publication. No credentials or raw provider payloads were logged.
+- Outcome / next step: Gateway and credential metadata are reachable, but current RYO tool-call allowance prevents confirming data-plane success. Retry after the provider allowance resets.
