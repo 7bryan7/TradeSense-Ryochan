@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrainCircuit, History, Keyboard, LayoutDashboard, LogOut, Menu, MessageSquare, Settings, Wallet, X } from "lucide-react";
+import { BrainCircuit, History, Keyboard, LayoutDashboard, LogOut, Menu, MessageSquare, Newspaper, Settings, Wallet, X } from "lucide-react";
 import type { GoogleUser } from "../auth";
 import type { Health, ViewName } from "../types";
 import { Modal } from "./UiPrimitives";
@@ -8,9 +8,10 @@ import { ThemeToggle } from "./ThemeToggle";
 const nav: Array<{ view: ViewName; label: string; icon: typeof LayoutDashboard }> = [
   { view: "dashboard", label: "Overview", icon: LayoutDashboard },
   { view: "chat", label: "Ask TradeSense", icon: MessageSquare },
-  { view: "analysis", label: "AI reasoning", icon: BrainCircuit },
-  { view: "portfolio", label: "Paper portfolio", icon: Wallet },
-  { view: "history", label: "Decision history", icon: History },
+  { view: "analysis", label: "AI Reasoning", icon: BrainCircuit },
+  { view: "news", label: "Market news", icon: Newspaper },
+  { view: "portfolio", label: "Paper Portfolio", icon: Wallet },
+  { view: "history", label: "Decision History", icon: History },
 ];
 
 export function StudioShell({ children, user, onSignOut, view, onView, viewHref, onShortcuts, health, mobileOpen, setMobileOpen }: {
@@ -26,7 +27,7 @@ export function StudioShell({ children, user, onSignOut, view, onView, viewHref,
     setMobileOpen(false);
   };
   const navigation = <>
-    <a className="brand brand-button" href={viewHref("dashboard")} onClick={(event) => followViewLink(event, "dashboard")}><span className="brand-mark">TS</span><span>TradeSense<small>RESEARCH WORKSPACE</small></span></a>
+    <a className="brand brand-button" href={viewHref("dashboard")} onClick={(event) => followViewLink(event, "dashboard")}><img className="brand-mark" src="/assets/brand-logo.png" alt="" /><span>TradeSense<small>RESEARCH WORKSPACE</small></span></a>
     <nav className="studio-nav" aria-label="Main navigation">
       <p>WORKSPACE</p>
       {nav.slice(0, 3).map(({ view: item, label, icon: Icon }) => <a key={item} href={viewHref(item)} aria-current={view === item ? "page" : undefined} className={view === item ? "nav-item active" : "nav-item"} onClick={(event) => followViewLink(event, item)}><Icon size={18} /><span>{label}</span>{item === "chat" && <small>AI</small>}</a>)}
@@ -35,7 +36,7 @@ export function StudioShell({ children, user, onSignOut, view, onView, viewHref,
     </nav>
     <div className="sidebar-bottom">
       <button type="button" className="nav-item policy-button" onClick={() => setPolicyOpen(true)}><Settings size={18} /><span>Server policy</span></button>
-      <div className="demo-user"><span className="avatar" aria-hidden="true">{user.name.slice(0, 1).toUpperCase()}</span><span><strong>{user.name}</strong><small>{user.email}</small></span><button type="button" className="signout-button" onClick={onSignOut} aria-label="Sign out"><LogOut /></button></div>
+      <div className="demo-user"><span className="avatar" aria-hidden="true">{user.name.slice(0, 1).toUpperCase()}</span><span><strong>{user.name}</strong><small title={user.email}>{user.email}</small></span><button type="button" className="signout-button" onClick={onSignOut} aria-label="Sign out"><LogOut /></button></div>
     </div>
   </>;
 

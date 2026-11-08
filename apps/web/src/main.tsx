@@ -8,15 +8,16 @@ import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
 import { LandingPage } from "./components/LandingPage";
 import type { LandingDestination } from "./components/landing/LandingNav";
 import { OverviewPage } from "./components/OverviewPage";
+import { NewsView } from "./components/NewsView";
 import { ReplayDetailsModal } from "./components/ReplayDetailsModal";
 import { StudioShell } from "./components/StudioShell";
 import { ErrorNotice } from "./components/UiPrimitives";
-import type { Chat, ConversationSummary, DashboardSummary, Health, MarketChartRange, MarketOverview, Portfolio, Replay, Run, Schedule, ViewName } from "./types";
+import type { Chat, ConversationSummary, DashboardSummary, Health, MarketChartRange, MarketOverview, NewsResponse, Portfolio, Replay, Run, Schedule, ViewName } from "./types";
 import "./styles.css";
 import "./overview-template.css";
 
-const viewNames = new Set<ViewName>(["dashboard", "analysis", "chat", "portfolio", "history"]);
-const viewTitles: Record<ViewName, string> = { dashboard: "Market overview", analysis: "AI reasoning", chat: "Ask TradeSense", portfolio: "Paper portfolio", history: "Decision history" };
+const viewNames = new Set<ViewName>(["dashboard", "analysis", "chat", "news", "portfolio", "history"]);
+const viewTitles: Record<ViewName, string> = { dashboard: "Market overview", analysis: "AI reasoning", chat: "Ask TradeSense", news: "Market news", portfolio: "Paper portfolio", history: "Decision history" };
 
 function readNavigationLocation(): { view: ViewName; runId: string | null } {
   const params = new URLSearchParams(window.location.search);
@@ -43,6 +44,8 @@ function App() {
   const entered = googleUser !== null;
   const [mode] = useState<DataMode>(() => selectedDataMode());
   const [view, setView] = useState<ViewName>(initialNavigation.view);
+  const [news, setNews] = useState<NewsResponse | null>(null);
+  const [newsLoading, setNewsLoading] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [symbol, setSymbol] = useState("SOL");
@@ -157,6 +160,9 @@ function App() {
     }
     return values;
   };
+  const loadNews = async () => { setNewsLoading(true); try { setNews(await api<NewsResponse>("/api/news?symbol=" + encodeURIComponent(symbol))); } finally { setNewsLoading(false); } };
+  const refreshNewsView = async () => { setNewsLoading(true); try { setNews(await api<NewsResponse>("/api/news/refresh", { method: "POST", body: JSON.stringify({ symbol }) })); } finally { setNewsLoading(false); } };
+  useEffect(() => { if (view === "news") void loadNews().catch((value) => setError(value instanceof Error ? value.message : "Unable to load market news")); }, [view, symbol]);
 
   const viewHref = (nextView: ViewName) => navigationHref(nextView, nextView === "analysis" || nextView === "history" ? run?.id : null);
   const navigateView = (nextView: ViewName, selectedRunId?: string | null) => {
@@ -354,6 +360,7 @@ function App() {
     {view === "portfolio" && <PortfolioView portfolio={portfolio} runs={runs} busy={busy} onNewPortfolio={() => { void startNewPortfolio(); }} />}
     {view === "history" && <HistoryView runs={runs} selected={run} onSelect={selectHistoryRun} onReplay={openReplay} />}
     {view === "chat" && <ChatView chat={chat} conversations={conversations} loading={chatLoading} run={run} runs={runs} user={googleUser} symbol={chat?.symbol ?? symbol} question={question} setQuestion={setQuestion} submit={ask} busy={busy} onSelectConversation={(id) => { void selectConversation(id); }} onNewConversation={() => { void createChatConversation(); }} onSelectRun={selectRun} />}
+    {view === "news" && <NewsView symbol={symbol} news={news} loading={newsLoading} onRefresh={() => { void refreshNewsView().catch((value) => setError(value instanceof Error ? value.message : "Unable to refresh market news")); }} />}
     <ReplayDetailsModal open={replayOpen} onClose={() => setReplayOpen(false)} run={run} replay={replay} loading={replayLoading} error={replayError} onRetry={() => { if (run) void loadReplay(run); }} />
     <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
   </StudioShell>;

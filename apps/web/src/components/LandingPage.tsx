@@ -49,7 +49,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
   const pipelineStages = [
     {
       step: '01',
-      title: 'Analyse',
+      title: 'Analyze',
       desc: 'Bounded RYO research gathers selected-token metrics, market context, comparisons, and coverage status.',
       tag: 'Data Ingestion',
       icon: Database,
@@ -124,12 +124,31 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
     },
   ];
 
-  const renderStageWidget = (_index: number) => (
-    <div className="rounded-xl bg-[#090B12] border border-white/10 p-8 text-center">
-      <p className="text-[#FBEDE0]">missing data</p>
-      <p className="mt-3 text-sm text-slate-400">Sign in and request live research to view source-linked observations.</p>
-    </div>
-  );
+  const renderStageWidget = (index: number) => {
+    const mockSnapshots = [
+      { label: 'Selected asset', value: 'ETH / USD', detail: 'Market snapshot · 24h window' },
+      { label: 'Evidence packet', value: '12 linked observations', detail: 'RYO + model-ready context' },
+      { label: 'Proposed action', value: 'HOLD · 74% confidence', detail: '7-day outlook · downside invalidation' },
+      { label: 'Paper outcome', value: 'BUY simulated', detail: '$500 virtual allocation · 10 bps fee' },
+      { label: 'Dashboard state', value: 'Replay verified', detail: '5 sources · 3 decision reasons' },
+    ];
+    const snapshot = mockSnapshots[index] ?? mockSnapshots[0];
+    return (
+      <div className="rounded-xl bg-[#090B12]/95 border border-[#38F997]/25 p-6 text-left shadow-[0_0_30px_rgba(56,249,151,0.06)]">
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <span className="text-[10px] font-mono font-bold tracking-[0.16em] text-[#38F997]">MOCK WALKTHROUGH</span>
+          <span className="px-2 py-1 rounded-full bg-[#38F997]/10 border border-[#38F997]/20 text-[10px] font-mono text-[#38F997]">DEMO ONLY</span>
+        </div>
+        <p className="text-[10px] font-mono uppercase tracking-wider text-[rgba(251,237,224,0.45)]">{snapshot.label}</p>
+        <p className="mt-2 text-xl sm:text-2xl font-bold text-[#FBEDE0]">{snapshot.value}</p>
+        <p className="mt-2 text-xs text-[rgba(251,237,224,0.6)]">{snapshot.detail}</p>
+        <div className="mt-6 h-1.5 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-[#38F997] to-[#00D2FF]" />
+        </div>
+        <p className="mt-3 text-[10px] font-mono text-[rgba(251,237,224,0.4)]">Illustrative interface state · not provider evidence</p>
+      </div>
+    );
+  };
 
   return (
     <div className="reference-landing min-h-screen bg-[#0C0E17] text-[#FBEDE0] relative overflow-hidden font-sans">
@@ -160,25 +179,25 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
         <div className="absolute inset-0 -z-10 bg-[#0C0E17]/35" aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0C0E17] to-transparent -z-10 pointer-events-none" />
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center my-auto">
+        <div className="landing-hero-content max-w-5xl mx-auto px-4 sm:px-6 text-center my-auto">
           {/* Market Intelligence Pill */}
           <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[rgba(251,237,224,0.06)] border border-[rgba(251,237,224,0.15)] text-xs font-mono text-[rgba(251,237,224,0.85)] mb-5 animate-fade-in shadow-lg backdrop-blur-sm">
             <span>Autonomous Crypto Market Intelligence</span>
           </div>
 
           {/* Hero Title */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#FBEDE0] leading-[1.1] max-w-5xl mx-auto mb-5 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
-            Analyse. Reason. Predict. Simulate. Visualize.
+          <h1 className="landing-hero-title text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#FBEDE0] leading-[1.1] max-w-5xl mx-auto mb-5 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+            Analyze. Reason. Predict. Simulate. Visualize.
           </h1>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-base md:text-lg text-[rgba(251,237,224,0.9)] max-w-2xl mx-auto mb-8 leading-relaxed font-normal drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+          <p className="landing-hero-subtitle text-sm sm:text-base md:text-lg text-[rgba(251,237,224,0.9)] max-w-2xl mx-auto mb-8 leading-relaxed font-normal drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
             TradeSense turns saved RYO market evidence into concise AI explanations,
             structured practice decisions, and deterministic 10 bps paper simulation.
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-4">
+          <div className="landing-hero-actions flex flex-wrap items-center justify-center gap-4">
             <button
               type="button"
               onClick={() => handleLaunchApp('dashboard')}
@@ -198,8 +217,13 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
         </div>
       </section>
 
+      <section className="landing-flow-bridge" aria-label="Analyse, build, predict workflow">
+        <img src="/assets/analyse-build-predict-flow.png" alt="Analyse, build, predict" />
+        <div className="landing-flow-network" aria-hidden="true" />
+      </section>
+
       {/* Middle & Lower Sections with Cinematic Floating Crypto Video Background (5-Stage Architecture, Value Pillars, CTA Banner) */}
-      <div ref={lowerVideoSection} className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
+      <div ref={lowerVideoSection} className="landing-lower-video relative isolate overflow-hidden">
         {/* Background Video: Floating 3D Golden Crypto Coins */}
         {loadLowerVideo && <video
           className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90 pointer-events-none"
@@ -213,8 +237,10 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
           <source src="/assets/video/309316_medium.mp4" type="video/mp4" />
         </video>}
         {/* Cinematic dark gradients for legibility & subtle edge feathering */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0C0E17] via-[#0C0E17]/45 to-[#0C0E17]" aria-hidden="true" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0C0E17]/55 via-[#0C0E17]/35 to-[#0C0E17]" aria-hidden="true" />
         <div className="absolute inset-0 -z-10 bg-[#0C0E17]/20 backdrop-blur-[1px]" aria-hidden="true" />
+        <div className="landing-video-edge landing-video-edge-top" aria-hidden="true" />
+        <div className="landing-video-edge landing-video-edge-bottom" aria-hidden="true" />
 
         {/* 5-Stage Autonomous Execution Pipeline (Dribbble & Awwwards Caliber Architectural Console) */}
         <section className="py-20 px-4 sm:px-6 max-w-6xl mx-auto relative z-10">
@@ -229,7 +255,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
         </div>
 
         {/* Interactive Step Navigator Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-6 landing-stage-nav">
           {pipelineStages.map((stage, idx) => {
             const Icon = stage.icon;
             const isActive = activeStage === idx;
@@ -238,7 +264,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
                 key={stage.step}
                 type="button"
                 onClick={() => setActiveStage(idx)}
-                className={`p-3 rounded-xl text-left font-mono transition-all duration-200 border flex flex-col justify-between gap-2 relative overflow-hidden group ${isActive
+                className={`landing-stage-card p-3 rounded-xl text-left font-mono transition-all duration-200 border flex flex-col justify-between gap-2 relative overflow-hidden group ${isActive
                   ? 'bg-[#161A29] border-[#38F997]/60 shadow-[0_0_24px_rgba(56,249,151,0.15)] ring-1 ring-[#38F997]/30'
                   : 'bg-[#10131F]/80 border-[rgba(251,237,224,0.08)] hover:border-[rgba(251,237,224,0.2)] hover:bg-[#141724]'
                   }`}
@@ -304,9 +330,8 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
               </div>
             </div>
 
-            {/* Right Pane: live research availability */}
+            {/* Right Pane: clearly labeled landing-page walkthrough */}
             <div className="lg:col-span-6">
-              <p className="mb-2 text-right text-[10px] font-mono font-bold tracking-wider text-amber-300">LIVE RESEARCH REQUIRED</p>
               {renderStageWidget(activeStage)}
             </div>
           </div>
