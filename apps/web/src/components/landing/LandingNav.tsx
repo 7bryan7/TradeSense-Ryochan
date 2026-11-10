@@ -48,11 +48,11 @@ export const LandingNav: React.FC<{
     <header className={`fixed top-0 left-0 right-0 w-full z-50 border-b transition-colors duration-300 ease-out ${scrolled ? 'bg-[#0C0E17]/80 backdrop-blur-xl border-[rgba(251,237,224,0.12)] shadow-[0_8px_32px_rgba(0,0,0,0.5)] py-4 px-4 sm:px-6' : 'bg-transparent backdrop-blur-none border-[rgba(251,237,224,0.08)] shadow-none py-4 px-4 sm:px-6'}`}>
       <div className="landing-nav-inner w-full max-w-7xl mx-auto flex items-center justify-between">
         <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center gap-2.5 group">
-          <HexLogo className="w-7 h-7 sm:w-8 sm:h-8" />
+          <img className="h-7 w-7 rounded-lg object-cover sm:h-8 sm:w-8" src="/assets/brand-logo.png" alt="" />
           <span className="font-bold text-sm sm:text-base tracking-tight text-[#FBEDE0] group-hover:text-white transition-colors">TradeSense</span>
         </button>
-        <nav className="hidden xl:flex items-center gap-1" aria-label="Landing navigation">
-          {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="px-3.5 py-1.5 rounded-full text-xs font-semibold text-[rgba(251,237,224,0.72)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-all duration-200">{label}</button>)}
+        <nav className="hidden lg:flex items-center gap-2 xl:gap-3" aria-label="Landing navigation">
+          {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="landing-nav-link text-xs font-semibold text-[rgba(251,237,224,0.72)] hover:text-[#FBEDE0] hover:bg-white/[0.08] hover:border-[rgba(251,237,224,0.18)] transition-all duration-200">{label}</button>)}
         </nav>
         <div className="landing-nav-actions flex items-center gap-2.5">
           <ThemeToggle />
@@ -67,12 +67,12 @@ export const LandingNav: React.FC<{
               <span>Dev Login</span>
             </button>
           )}
-          <button type="button" onClick={() => openSignIn()} className="hidden 2xl:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] hover:bg-[#1C2030] hover:border-[#38F997]/40 transition-colors"><GoogleIcon /><span>Sign in</span></button>
+          <button type="button" onClick={() => openSignIn()} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] hover:bg-[#1C2030] hover:border-[#38F997]/40 transition-colors"><GoogleIcon /><span>Sign in</span></button>
           <button type="button" onClick={() => openSignIn('dashboard')} className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-[#38F997] text-[#0C0E17] hover:bg-[#46fba1] transition-colors"><span>Launch App</span><ArrowRight className="w-3.5 h-3.5" /></button>
-          <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} aria-label="Toggle navigation menu" aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-menu" className="xl:hidden p-2 rounded-lg text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-colors">{mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
+          <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} aria-label="Toggle navigation menu" aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-menu" className="lg:hidden p-2 rounded-lg text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-colors">{mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
         </div>
       </div>
-      {mobileMenuOpen && <div id="landing-mobile-menu" className="xl:hidden mt-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 border-t border-b border-[rgba(251,237,224,0.10)] bg-[#0C0E17]/95 backdrop-blur-2xl shadow-2xl"><div className="flex flex-col space-y-1">
+      {mobileMenuOpen && <div id="landing-mobile-menu" className="lg:hidden mt-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 border-t border-b border-[rgba(251,237,224,0.10)] bg-[#0C0E17]/95 backdrop-blur-2xl shadow-2xl"><div className="flex flex-col space-y-1">
         {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="px-4 py-2.5 rounded-2xl text-sm font-semibold text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-all flex items-center justify-between"><span>{label}</span><ArrowRight className="w-3.5 h-3.5 opacity-50" /></button>)}
         <div className="pt-2 mt-2 border-t border-[rgba(251,237,224,0.10)] space-y-2">
           {onDevLogin && (

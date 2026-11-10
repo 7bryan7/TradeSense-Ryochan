@@ -23,6 +23,13 @@ export type Evidence = {
   purpose?: string;
 };
 
+export type NewsResponse = {
+  symbol: string;
+  status: "available" | "unavailable";
+  reason: string | null;
+  evidence: Evidence | null;
+};
+
 export type ResearchTimelineStep = {
   ordinal: number;
   role: string;
@@ -165,4 +172,4 @@ export type ConversationSummary = {
   title: string;
   latestMessage: null | { role: string; text: string; status: string };
 };
-export type ViewName = "dashboard" | "analysis" | "chat" | "portfolio" | "history";
+export type ViewName = "dashboard" | "analysis" | "chat" | "news" | "portfolio" | "history";

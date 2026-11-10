@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createMessageSchema, createRunSchema, dataModeSchema, tokenSymbolSchema, type DataMode } from "@tradesense/core";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
-import { ask, conversationView, createConversation, createPracticePortfolio, createRun, dashboardSummary, getRun, history, listConversations, liveMarketChart, liveModeAvailable, marketOverview, portfolio, refreshMarketOverview, replayRun, touchSession } from "./services.js";
+import { ask, conversationView, createConversation, createPracticePortfolio, createRun, dashboardSummary, getRun, history, latestNews, listConversations, liveMarketChart, liveModeAvailable, marketOverview, portfolio, refreshMarketOverview, refreshNews, replayRun, touchSession } from "./services.js";
 import { createSchedule, listSchedules, updateSchedule } from "./scheduler.js";
 import { consumeHttpRequest } from "./limits.js";
 
@@ -44,6 +44,8 @@ export function createApp() {
   app.get("/api/runs/:id/replay", (req, res, next) => { try { res.json(replayRun(req.params.id, res.locals.sessionId, res.locals.mode)); } catch (e) { next(e); } });
   app.get("/api/runs/:id", (req, res, next) => { try { res.json(getRun(req.params.id, res.locals.sessionId, res.locals.mode)); } catch (e) { next(e); } });
   app.get("/api/history", (_req, res) => res.json(history(res.locals.sessionId, res.locals.mode)));
+  app.get("/api/news", (req, res, next) => { try { const symbol = tokenSymbolSchema.parse(req.query.symbol ?? "SOL"); res.json(latestNews(symbol, res.locals.sessionId, res.locals.mode)); } catch (e) { next(e); } });
+  app.post("/api/news/refresh", async (req, res, next) => { try { const symbol = tokenSymbolSchema.parse(req.body?.symbol ?? "SOL"); res.json({ symbol, status: "available", evidence: await refreshNews(symbol, res.locals.sessionId, res.locals.mode) }); } catch (e) { next(e); } });
   app.get("/api/portfolio", (_req, res) => res.json(portfolio(res.locals.sessionId, new Date(), res.locals.mode)));
   app.post("/api/portfolio/new", (_req, res, next) => { try { res.status(201).json(createPracticePortfolio(res.locals.sessionId, res.locals.mode)); } catch (e) { next(e); } });
   app.get("/api/dashboard", async (req, res, next) => {

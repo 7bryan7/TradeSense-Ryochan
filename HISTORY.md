@@ -920,6 +920,28 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - External side effects: None.
 - Outcome / next step: Summary delivered with current implementation, verification status, limitations, and uncommitted-change context.
 
+### 20261107T112052Z-root-ask-tradesense-redesign — Redesign Ask TradeSense appearance
+
+- Recorded at: 2026-11-07 11:20:52 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Restyle the Ask TradeSense AI section to match the supplied visual reference without significant backend or structural changes.
+- Actions: Preserved existing chat state, routes, message submission, evidence classification, and conversation behavior. Added a presentation-only observed-facts rail sourced from the latest saved assistant classification and added responsive visual styling for the conversation rail, message bubbles, context strip, classification cards, composer, and evidence panel.
+- Files: apps/web/src/components/ChatView.tsx; apps/web/src/styles.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. A local browser reached the Google-only landing gate at `?view=chat`; authenticated chat visual inspection was not possible without signing in.
+- External side effects: Local build/lint checks and a read-only localhost browser visit only. No backend changes, provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Appearance redesign is implemented with existing backend contracts preserved. Authenticated visual review remains pending.
+
+### 20261107T112202Z-root-start-local-servers — Start local development servers
+
+- Recorded at: 2026-11-07 11:22:02 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Start the local TradeSense web and API servers.
+- Actions: Started `npm run dev` in the attached workspace and checked both local endpoints.
+- Files: HISTORY.md.
+- Verification: Web server returned HTTP 200 from `http://localhost:3000/`. API health returned `status=ok`, live mode, configured providers, simulated-only trading, and scheduler enabled from `http://localhost:4000/api/health`.
+- External side effects: Local processes only; no provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Local servers are running in attached shell session 8.
+
 ### 20261008T143744Z-root-overview-content-only — Apply template inside existing shell
 
 - Recorded at: 2026-10-08 14:37:44 UTC.
@@ -1073,6 +1095,269 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - External side effects: Nine authenticated read-only RYO requests (three gateway checks and six tool calls); no Gemini/Tavily call, trade, ledger mutation, deployment, or publication.
 - Outcome / next step: RYO gateway and credentials work, but usable market observations are currently degraded across the six-tool surface. Exact upstream cause is undisclosed; the evidence does not establish gateway overload or service launch status.
 
+### 20261107T103130Z-root-ryo-endpoint-recheck — Verify current RYO MCP surface
+
+- Recorded at: 2026-11-07 10:31:30 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Recheck whether all RYO API/MCP endpoints work.
+- Actions: Read the current history and performed authenticated, read-only gateway checks followed by bounded calls to all six catalog tools. Used `ETH` for selected-token and deep analysis, `ETH, BTC` for comparison, three scan candidates, and the catalog-supported seven-day sentiment window. The grouped diagnostic returned only the first three tool results before completion, so the remaining three were retried individually; no response was inferred from an incomplete process.
+- Files: `HISTORY.md` only; application source and user database were not changed.
+- Verification: `/health`, `/whoami`, and `/tools` all returned HTTP 200. The key has `tools:read`, and the live catalog exposes six tools: `market_overview`, `scan_market`, `analyze_token`, `deep_analysis`, `compare_tokens`, and `monitor_market_sentiment_shift`. All six tool calls returned HTTP 200 with `data_mode=live`: overview `ok`, scan `ok` with three candidates, ETH analysis `partial`, ETH deep analysis `partial`, ETH/BTC comparison `ok`, and sentiment monitoring `ok`. ETH analysis/deep analysis reported unavailable technical indicators; deep analysis also lacked an optional Skill Hub profile and preview plan. Comparison warned that optional token profiles were unavailable. No 401, 403, 429, or non-live envelope occurred; general rate-limit remaining was 57–59. Requests took approximately 1.5–28.8 seconds.
+- External side effects: Nine authenticated read-only RYO requests (three gateway checks and six tool calls). No Gemini/Tavily call, trade, ledger mutation, deployment, or publication occurred.
+- Outcome / next step: The RYO MCP gateway and all six advertised tools are currently functioning with live data. UI and agent flows should continue surfacing their explicit optional-coverage warnings rather than treating them as failures.
+
+### 20261107T110607Z-root-start-local-development — Start local TradeSense servers
+
+- Recorded at: 2026-11-07 11:06:07 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Run the application locally on port 3000.
+- Actions: Started `npm run dev` from the workspace. The initial sandboxed process could not create the `tsx` local IPC socket (`EPERM`), so the same development command was restarted with the required local-process permission. Confirmed the frontend and API readiness with local HTTP checks.
+- Files: `HISTORY.md` only; application source and data were not changed intentionally.
+- Verification: `http://localhost:3000/` returned HTTP 200 and `http://localhost:4000/api/health` returned HTTP 200. Startup reported the API on port 4000 and Vite on port 3000.
+- External side effects: Started a local long-running development process. The configured application startup also reported that the recurring paper-analysis scheduler is enabled; it remains paper-only but may execute configured scheduled scans using live providers. No deployment or real-money action occurred.
+- Outcome / next step: TradeSense is available locally at `http://localhost:3000`.
+
+### 20261107T114820Z-root-landing-text-alignment — Refine pre-login landing typography
+
+- Recorded at: 2026-11-07 11:48:20 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Improve centering, spacing, and readable font sizing for landing-page text before login.
+- Actions: Added scoped landing hero classes and responsive rules for balanced title wrapping, centered subtitle spacing, consistent CTA sizing, and stacked mobile actions. Kept the authenticated workspace and application behavior unchanged.
+- Files: apps/web/src/components/LandingPage.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser checks confirmed centered desktop hero bounds and mobile responsive layout; the shared browser page was restored to a 1280x960 viewport.
+- External side effects: Local compilation and read-only localhost browser checks only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Pre-login hero text now maintains centered alignment, controlled line lengths, consistent spacing, and responsive font sizes.
+
+### 20261107T115303Z-root-landing-video-edge-verification — Verify landing video transitions
+
+- Recorded at: 2026-11-07 11:53:03 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Verify and improve the visual transition at the beginning and ending edges of the landing-page video sections.
+- Actions: Captured desktop screenshots at the hero, lower-video transition, and footer boundary. Confirmed the hero already had a bottom fade, while the lower video needed explicit edge treatment. Added scoped top and bottom feather gradients to the lower video section and re-captured both transition boundaries.
+- Files: apps/web/src/components/LandingPage.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Desktop screenshots showed a dark top blend into the lower video and a smooth bottom fade into a separated footer; the shared browser page was restored to the top at 1280x960.
+- External side effects: Local compilation and read-only localhost screenshots only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Landing video edges now have intentional gradient separation rather than abrupt transitions. Mobile visual review remains optional.
+
+### 20261107T120225Z-root-landing-transition-softening — Soften hero-to-video color transition
+
+- Recorded at: 2026-11-07 12:02:25 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Remove the sudden visual break at the hero-to-lower-video boundary shown in the supplied screenshot.
+- Actions: Removed the lower-section top border, reduced the solid opacity of the lower video overlay, and extended the top feather gradient with intermediate navy-to-warm transparent color stops.
+- Files: apps/web/src/components/LandingPage.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. A desktop screenshot at 1280x960 confirmed a longer blended transition with no bright rule or abrupt color cutoff.
+- External side effects: Local compilation and read-only localhost screenshot only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: The hero now transitions into the lower video through a gradual dark navy-to-warm gradient shift.
+
+### 20261107T120556Z-root-landing-mock-walkthrough — Add mock walkthrough to landing workflow
+
+- Recorded at: 2026-11-07 12:05:56 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Replace the missing-data placeholder in the pre-login “5 Stages of Explainable AI” showcase with mock data, without adding mock data elsewhere.
+- Actions: Replaced only the landing workflow widget with stage-specific illustrative values for asset research, evidence, decision, paper simulation, and replay. Marked the panel `MOCK WALKTHROUGH`, `DEMO ONLY`, and “not provider evidence.” No API, authenticated dashboard, live research, or persistence data was changed.
+- Files: apps/web/src/components/LandingPage.tsx; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser snapshot and screenshot confirmed the landing workflow now displays the labeled ETH/USD mock walkthrough instead of “missing data.”
+- External side effects: Local compilation and a read-only localhost browser screenshot only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Mock content is limited to the requested pre-login landing-page workflow section.
+
+### 20261107T121020Z-root-landing-stage-hover — Add slow bright stage-card hover border
+
+- Recorded at: 2026-11-07 12:10:20 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Make the five landing-page workflow cards form a bright border slowly on hover.
+- Actions: Added a scoped class to the five stage buttons and a 750ms transition for border color, background, shadow, and transform. Hover and keyboard focus now produce a bright green border with a restrained glow; active-stage behavior remains intact.
+- Files: apps/web/src/components/LandingPage.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser hover verification confirmed the bright border and computed 0.75-second transition.
+- External side effects: Local compilation and read-only localhost browser hover/screenshot checks only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Stage cards now form a visible bright border gradually on hover and keyboard focus.
+
+### 20261107T121322Z-root-landing-stage-hover-verification — Verify stage-card hover visuals
+
+- Recorded at: 2026-11-07 12:13:22 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Test the landing workflow-card hover feature for visual faults.
+- Actions: Exercised all five cards at desktop size, checked the responsive two-column mobile layout, inspected the 750ms transition and computed hover border/shadow, tested keyboard focus, and compared the hovered card bounds before and after the animation.
+- Files: HISTORY.md.
+- Verification: `npm run lint` and `git diff --check` passed. All five cards remained within the viewport with consistent dimensions; hover produced the expected bright border and glow; keyboard focus produced a visible outline; desktop layout shift was 0px in position and size.
+- External side effects: Read-only local browser hover/focus checks only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: No visual faults found in the tested desktop, mobile, hover, or focus states.
+
+### 20261107T121639Z-root-landing-stage-spacing — Improve stage-card content spacing
+
+- Recorded at: 2026-11-07 12:16:39 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Add more space between the stage-card content and its borders.
+- Actions: Added scoped stage-card padding, minimum height, and internal gap so the step marker, icon, title, and subtitle have consistent breathing room without changing the card interaction model.
+- Files: apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser measurement confirmed 19.2px horizontal padding, 17.28px vertical padding, 16.32px content gap, and stable card rendering; a screenshot confirmed the neater spacing.
+- External side effects: Local compilation and read-only localhost browser screenshot only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Stage-card contents are now visually separated from the borders and each other.
+
+### 20261107T122741Z-root-chat-layout — Reduce Ask TradeSense workspace clutter
+
+- Recorded at: 2026-11-07 12:27:41 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Improve the authenticated Ask TradeSense page's typography, spacing, and evidence-card arrangement without changing backend behavior.
+- Actions: Reduced desktop sidebar widths to give the central thread more room, expanded assistant message content to the available width, added stable minimum-width and wrapping rules for evidence claims and source labels, increased classification-card breathing room, and stacked classification sections at tablet/mobile widths.
+- Files: apps/web/src/styles.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. The local browser remained at the Google-only landing gate, so authenticated rendering could not be re-opened in the automated session.
+- External side effects: Local compilation and read-only localhost browser inspection only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Long evidence content now has a responsive, wrap-safe layout and the central chat thread has improved visual hierarchy; authenticated screenshot review remains pending a signed-in browser session.
+
+### 20261107T124241Z-root-chat-evidence-cards — Replace chat prompt cards with evidence summary
+
+- Recorded at: 2026-11-07 12:42:41 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Change the empty Ask TradeSense workspace cards from question prompts to observed-fact and evidence summaries.
+- Actions: Replaced the clickable suggestion grid with four read-only cards for observed facts, evidence packet, decision context, and risks/data gaps. Cards derive from existing saved chat classifications, sources, and the selected run; unavailable data is explicitly labeled rather than fabricated.
+- Files: apps/web/src/components/ChatView.tsx; apps/web/src/styles.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser reload confirmed the old suggestion grid is gone and the four evidence cards render in the authenticated chat view.
+- External side effects: Local compilation and read-only localhost browser inspection only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: The cards now present saved evidence context instead of initiating canned questions; they populate when a saved run or classified chat evidence is available.
+
+### 20261108T025200Z-root-chat-classification-rail — Move answer classification to right rail
+
+- Recorded at: 2026-11-08 02:52:00 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Keep the main Ask TradeSense response focused on the answer and show structured classification in the right sidebar.
+- Actions: Removed the per-message classification block and legacy classification notice from the main chat thread. The right rail now shows the latest assistant classification with Observed facts, Derived calculations, and AI interpretation sections, including their evidence labels and explicit empty states.
+- Files: apps/web/src/components/ChatView.tsx; apps/web/src/styles.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. The local server restarted successfully; the shared browser tab expired before authenticated visual verification could be completed.
+- External side effects: Local compilation and localhost server startup only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: New answers will render their written response in the main thread and their structured classification exclusively in the right sidebar.
+
+### 20261108T033500Z-root-visual-audit — Verify reported visual issues
+
+- Recorded at: 2026-11-08 03:35:00 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Check the supplied read-only visual audit against the current application without editing the attachment.
+- Actions: Inspected the cited components/styles, checked responsive breakpoint rules, theme declarations, landing button/nav computed styles, chat context grid, overview fallback rendering, navigation labels, and mobile layout rules. The read-only attachment was not modified.
+- Files: HISTORY.md; inspected apps/web/src/styles.css, apps/web/src/landing-reference.css, apps/web/src/overview-template.css, apps/web/src/components/ChatView.tsx, apps/web/src/components/LandingPage.tsx, apps/web/src/components/LandingNav.tsx, apps/web/src/components/OverviewPage.tsx, and apps/web/src/components/StudioShell.tsx.
+- Verification: Confirmed landing CTA buttons compute to transparent backgrounds and zero borders, light-mode landing nav remains cream, the chat context strip currently uses three columns for four items, overview fallback text uses ellipsis and repeats missing-data labels, and the five landing stages use a two-column mobile grid. Confirmed root dark color-scheme is already declared; sticky overview content starts below the topbar in normal flow; active navigation uses inherited active color; and workspace bottom padding exists for the mobile navigation bar. No code changes were made for this audit.
+- External side effects: Read-only local browser inspection and localhost server startup only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: The supplied report contains confirmed defects, partial risks, and non-reproduced/stale findings; findings are summarized in the handoff.
+
+### 20261108T033339Z-root-visual-audit-correction — Correct visual audit timestamp
+
+- Recorded at: 2026-11-08 03:33:39 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Correct the preceding visual-audit history timestamp to the actual UTC time.
+- Actions: Added this correction entry; the preceding audit entry remains unchanged for append-only history.
+- Files: HISTORY.md.
+- Verification: Timestamp checked with the local UTC clock.
+- External side effects: None.
+- Outcome / next step: Audit record timestamp correction complete.
+
+### 20261108T034249Z-root-visual-fixes — Fix confirmed visual audit defects
+
+- Recorded at: 2026-11-08 03:42:49 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Fix the confirmed responsive, contrast, spacing, fallback-content, and navigation visual defects from the supplied audit.
+- Actions: Added a tablet workspace layout through 1024px, hid desktop-only sidebars before they can squeeze content, corrected the four-item chat context grid, restored landing CTA backgrounds/borders after the scoped reset, improved light-mode landing navigation contrast, centered the fifth mobile landing stage, replaced the overview selector’s Unicode caret with a CSS chevron, reduced repeated empty-decision wording, made overview fallbacks wrap, standardized primary navigation casing, and added an email title fallback.
+- Files: apps/web/src/styles.css; apps/web/src/landing-reference.css; apps/web/src/overview-template.css; apps/web/src/components/LandingNav.tsx; apps/web/src/components/LandingPage.tsx; apps/web/src/components/StudioShell.tsx; apps/web/src/components/OverviewPage.tsx; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser verification confirmed landing CTA backgrounds and borders are restored, the landing page has no horizontal overflow at the active desktop viewport, the fifth stage remains centered by the mobile rule, and the landing hero now uses consistent American spelling.
+- External side effects: Local compilation, localhost server use, and read-only browser inspection only. No provider calls, authentication, ledger changes, deployment, or publication.
+- Outcome / next step: Confirmed audit defects are fixed without backend or persistence changes; authenticated tablet/chat visual confirmation remains limited to CSS/static verification because no authenticated tablet session was available.
+
+### 20261108T040631Z-root-tavily-news — Add mandatory pre-decision news and News workspace
+
+- Recorded at: 2026-11-08 04:06:31 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Add a bounded Tavily crypto-news section and require current news evidence before new paper decisions.
+- Actions: Reused the existing server-side Tavily search boundary for symbol-aware news, persisted news as session/run-owned evidence, included it in decision model context, reused saved news during retries, added authenticated news list/refresh routes, and added a responsive Market news workspace view and navigation item.
+- Files: apps/server/src/services.ts; apps/server/src/app.ts; apps/web/src/types.ts; apps/web/src/main.tsx; apps/web/src/components/NewsView.tsx; apps/web/src/components/StudioShell.tsx; apps/web/src/styles.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. No live Tavily call was made.
+- External side effects: Local compilation only. No provider calls, model calls, ledger mutations, deployment, or publication.
+- Outcome / next step: Feature wiring is complete for configured Tavily credentials; add targeted automated coverage for mandatory news and route ownership before calling the live flow verified.
+
+### 20261108T041250Z-root-tavily-live-check — Verify configured Tavily news
+
+- Recorded at: 2026-11-08 04:12:50 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Verify the configured local Tavily credential against the new News boundary.
+- Actions: Checked local API readiness, requested one bounded SOL news refresh through `POST /api/news/refresh`, and queried the saved snapshot through `GET /api/news`.
+- Files: HISTORY.md; local ignored `.env` was used without logging or exposing the credential.
+- Verification: Tavily returned five live public sources with one reported credit used; the saved-news endpoint returned `available`; no model call or paper-ledger mutation was made.
+- External side effects: One authorized Tavily search and its provider credit usage. No deployment, publication, or real trade.
+- Outcome / next step: Local Tavily configuration and persisted News endpoint are operational. A complete live analysis remains unverified because it would also require configured RYO and Gemini credentials and would incur additional provider calls.
+
+### 20261108T045930Z-root-brand-logo — Add supplied application logo
+
+- Recorded at: 2026-11-08 04:59:30 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Use the supplied brain-and-growth-chart image as the TradeSense application logo.
+- Actions: Copied the read-only attachment into the web public assets, replaced the landing and authenticated workspace brand marks, and updated the browser favicon.
+- Files: apps/web/public/assets/brand-logo.png; apps/web/src/components/LandingNav.tsx; apps/web/src/components/StudioShell.tsx; apps/web/src/styles.css; apps/web/index.html; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. The refreshed localhost landing header visibly renders the supplied logo asset.
+- External side effects: Local asset copy and localhost browser inspection only. No provider calls, deployment, or publication.
+- Outcome / next step: Supplied logo is active across the application brand surfaces and favicon.
+
+### 20261108T050240Z-root-landing-flow-graphic — Add flow graphic between landing videos
+
+- Recorded at: 2026-11-08 05:02:40 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Display the supplied Analyse, Build, Predict graphic between the landing page's two video sections.
+- Actions: Copied the read-only attachment into the web public assets, inserted an accessible bridge section between the hero and lower video, and added dark edge fades plus responsive sizing.
+- Files: apps/web/public/assets/analyse-build-predict-flow.png; apps/web/src/components/LandingPage.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Desktop browser inspection confirmed the graphic appears between the sections; mobile measurement preserved its full aspect ratio without overflow.
+- External side effects: Local asset copy and localhost browser inspection only. No provider calls, deployment, or publication.
+- Outcome / next step: The supplied workflow image now provides the visual transition between the two landing videos.
+
+### 20261108T050613Z-root-flow-network-overlay — Add animated network overlay
+
+- Recorded at: 2026-11-08 05:06:13 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Add a subtle network-style animation over the landing flow graphic.
+- Actions: Added a separate decorative overlay with faint connection lines, pulsing nodes, a slow scan pass, and a reduced-motion fallback; kept the supplied image unchanged.
+- Files: apps/web/src/components/LandingPage.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser inspection confirmed the overlay animation is active and remains within the flow bridge.
+- External side effects: Local browser inspection only. No provider calls, deployment, or publication.
+- Outcome / next step: The Analyse, Build, Predict transition now has a restrained animated network effect.
+
+### 20261108T050757Z-root-landing-theme-toggle — Remove landing theme toggle
+
+- Recorded at: 2026-11-08 05:07:57 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Remove the theme toggle from the landing page only.
+- Actions: Removed the landing navigation's ThemeToggle import and render; retained the authenticated workspace toggle in StudioShell.
+- Files: apps/web/src/components/landing/LandingNav.tsx; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Refreshed landing browser snapshot no longer contains a theme toggle; StudioShell still renders ThemeToggle.
+- External side effects: Local browser inspection only. No provider calls, deployment, or publication.
+- Outcome / next step: Landing page no longer exposes theme switching, while the signed-in workspace retains it.
+
+### 20261108T051100Z-root-landing-nav-spacing — Improve landing navigation spacing
+
+- Recorded at: 2026-11-08 05:11:00 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Add proper spacing between landing navigation elements and inside their hover borders.
+- Actions: Increased desktop navigation gaps, added larger internal button padding, reserved transparent border space to prevent hover layout shift, and added a subtle visible hover border.
+- Files: apps/web/src/components/landing/LandingNav.tsx; HISTORY.md.
+- Verification: Pending targeted typecheck/lint and browser hover inspection.
+- External side effects: None.
+- Outcome / next step: Verify the refreshed landing header at desktop width and confirm hover targets remain readable and evenly spaced.
+
+### 20261108T051402Z-root-landing-nav-spacing-verified — Verify landing navigation spacing
+
+- Recorded at: 2026-11-08 05:14:02 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Complete verification of the landing navigation spacing refinement.
+- Actions: Corrected the landing-specific button reset interaction with explicit scoped spacing and border rules, then inspected the live desktop hover state.
+- Files: apps/web/src/components/landing/LandingNav.tsx; apps/web/src/landing-reference.css; HISTORY.md.
+- Verification: `npm run typecheck`, `npm run lint`, and `git diff --check` passed. Browser inspection measured 14.4px navigation gap, 9.6px vertical/19.2px horizontal internal padding, and a visible rgba hover border without layout shift.
+- External side effects: Local browser inspection only. No provider calls, deployment, or publication.
+- Outcome / next step: Landing navigation spacing and hover borders are verified.
+
+### 20261108T055202Z-root-ryo-endpoint-check — Check all RYO MCP endpoints
+
+- Recorded at: 2026-11-08 05:52:02 UTC.
+- Agent: AI assistant using Copilot SDK in VS Code.
+- Task: Check the authenticated RYO MCP gateway and all six documented tool endpoints.
+- Actions: Built the current packages, queried `/tools`, `/health`, and `/whoami`, then called `market_overview`, `scan_market`, `analyze_token`, `deep_analysis`, `compare_tokens`, and `monitor_market_sentiment_shift` sequentially to avoid the documented fanout limit.
+- Files: HISTORY.md.
+- Verification: Metadata checks returned HTTP 200; health reported six tools; identity reported the six expected tool permissions and a credential expiry in December 2026. All six tool calls were rejected with `MCP call allowance exhausted`, so no live evidence envelope was returned.
+- External side effects: Six bounded RYO endpoint attempts; no model call, ledger mutation, deployment, or publication. No credentials or raw provider payloads were logged.
+- Outcome / next step: Gateway and credential metadata are reachable, but current RYO tool-call allowance prevents confirming data-plane success. Retry after the provider allowance resets.
 ### 20261021T085600Z-root-node22-run-diagnosis — Diagnose Node version requirement and run prerequisites
 
 - Recorded at: 2026-10-21 08:56:00 UTC.

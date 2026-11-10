@@ -25,7 +25,11 @@ export function modelForMode(mode: DataMode): ModelAdapter {
 }
 
 export function runDependenciesForMode(mode: DataMode): RunDependencies {
-  return { research: researchForMode(mode), model: modelForMode(mode) };
+  return {
+    research: researchForMode(mode),
+    model: modelForMode(mode),
+    searchNews: async (ownerId, query, symbol) => searchChatWeb(ownerId, ownerId, query, symbol),
+  };
 }
 
 export const research: ResearchAdapter = { call: (tool, args) => researchForMode("live").call(tool, args) };
@@ -90,6 +94,7 @@ export interface RunDependencies {
   model: ModelAdapter;
   now?: () => Date;
   beforeApply?: () => void;
+  searchNews?: (ownerId: string, query: string, symbol: string) => Promise<Evidence>;
 }
 
 export interface ChatDependencies {
@@ -233,7 +238,16 @@ async function collectDecisionEvidence(runId: string, symbol: string, sessionId:
   }));
   const failedIndex = contextResults.findIndex((result) => result.status === "rejected");
   if (failedIndex >= 0) throw (contextResults[failedIndex] as PromiseRejectedResult).reason;
-
+  const savedNews = db.prepare("SELECT payload_json FROM evidence WHERE run_id=? AND purpose='news' ORDER BY retrieved_at DESC LIMIT 1").get(runId) as { payload_json: string } | undefined;
+  if (savedNews) {
+    return [...plan.map((step) => byTool.get(step.tool)).filter((item): item is Evidence => Boolean(item)), JSON.parse(savedNews.payload_json) as Evidence];
+  }
+  if (dependencies.searchNews) {
+    const news = await dependencies.searchNews(runId, `latest crypto market news for ${symbol}`, symbol);
+    db.prepare("INSERT OR REPLACE INTO evidence (id, session_id, run_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, ?, 'news', ?, ?, ?, ?, ?, ?, ?)")
+      .run(news.id, sessionId, runId, news.tool, symbol, news.status, news.dataMode, news.asOf, news.retrievedAt, JSON.stringify(news));
+    return [...plan.map((step) => byTool.get(step.tool)).filter((item): item is Evidence => Boolean(item)), news];
+  }
   return plan.map((step) => byTool.get(step.tool)).filter((item): item is Evidence => Boolean(item));
 }
 
@@ -567,6 +581,20 @@ export function getRun(id: string, sessionId = DEFAULT_SESSION_ID, mode: DataMod
     })),
     evidence: evidenceRows.map((item) => ({ ...JSON.parse(item.payload_json), purpose: item.purpose })),
   };
+}
+
+export async function refreshNews(symbol: string, sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE): Promise<Evidence> {
+  if (mode !== "live") throw Object.assign(new Error("Only live data is supported"), { status: 400 });
+  const evidence = await searchChatWeb(randomUUID(), randomUUID(), `latest crypto market news for ${symbol}`, symbol);
+  db.prepare("INSERT INTO evidence (id, session_id, purpose, tool, symbol, status, mode, as_of, retrieved_at, payload_json) VALUES (?, ?, 'news', ?, ?, ?, ?, ?, ?, ?)")
+    .run(evidence.id, sessionId, evidence.tool, symbol, evidence.status, evidence.dataMode, evidence.asOf, evidence.retrievedAt, JSON.stringify(evidence));
+  return evidence;
+}
+
+export function latestNews(symbol: string, sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
+  const rows = db.prepare("SELECT payload_json FROM evidence WHERE session_id=? AND purpose='news' AND symbol=? AND mode=? ORDER BY retrieved_at DESC LIMIT 1").all(sessionId, symbol, mode) as Array<{ payload_json: string }>;
+  if (!rows[0]) return { symbol, status: "unavailable" as const, reason: "No saved news is available yet.", evidence: null };
+  return { symbol, status: "available" as const, reason: null, evidence: JSON.parse(rows[0].payload_json) as Evidence };
 }
 
 export function history(sessionId = DEFAULT_SESSION_ID, mode: DataMode = config.DATA_MODE) {
