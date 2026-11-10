@@ -10,7 +10,7 @@ import {
   ExternalLink,
   Github,
 } from 'lucide-react';
-import { developerUser, type GoogleUser } from '../auth';
+import type { GoogleUser } from '../auth';
 import { LandingNav, HexLogo, type LandingDestination } from './landing/LandingNav';
 import { LandingSignInModal } from './landing/LandingSignInModal';
 import '../landing-reference.css';
@@ -160,7 +160,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
       <div className="absolute top-96 -left-40 w-96 h-96 bg-[#00D2FF]/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Dynamic Glass Navbar (Hero Blending + Frosted Glass on Scroll) */}
-      <LandingNav onSignIn={handleLaunchApp} onDevLogin={() => onSignedIn(developerUser, 'dashboard')} />
+      <LandingNav onSignIn={handleLaunchApp} />
 
       {/* Hero Section (Fills full viewport height down to the bottom of the screen) */}
       <section className="reference-hero relative z-10 isolate overflow-hidden flex flex-col justify-center pt-24 pb-14">

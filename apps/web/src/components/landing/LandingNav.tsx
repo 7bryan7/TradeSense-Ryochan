@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Menu, Terminal, X } from 'lucide-react';
+import { ArrowRight, Menu, X } from 'lucide-react';
 import type { ViewName } from '../../types';
 import { ThemeToggle } from '../ThemeToggle';
 
@@ -24,8 +24,7 @@ const GoogleIcon = () => (
 
 export const LandingNav: React.FC<{
   onSignIn: (destination?: LandingDestination) => void;
-  onDevLogin?: () => void;
-}> = ({ onSignIn, onDevLogin }) => {
+}> = ({ onSignIn }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   useEffect(() => {
@@ -56,17 +55,6 @@ export const LandingNav: React.FC<{
         </nav>
         <div className="landing-nav-actions flex items-center gap-2.5">
           <ThemeToggle />
-          {onDevLogin && (
-            <button
-              type="button"
-              onClick={onDevLogin}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium rounded-lg bg-[#161926] border border-[#38F997]/40 text-[#38F997] hover:bg-[#38F997]/15 hover:border-[#38F997] transition-all cursor-pointer"
-              title="Instant Developer Access to Dashboard"
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              <span>Dev Login</span>
-            </button>
-          )}
           <button type="button" onClick={() => openSignIn()} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] hover:bg-[#1C2030] hover:border-[#38F997]/40 transition-colors"><GoogleIcon /><span>Sign in</span></button>
           <button type="button" onClick={() => openSignIn('dashboard')} className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-[#38F997] text-[#0C0E17] hover:bg-[#46fba1] transition-colors"><span>Launch App</span><ArrowRight className="w-3.5 h-3.5" /></button>
           <button type="button" onClick={() => setMobileMenuOpen((value) => !value)} aria-label="Toggle navigation menu" aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-menu" className="lg:hidden p-2 rounded-lg text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-colors">{mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
@@ -75,16 +63,6 @@ export const LandingNav: React.FC<{
       {mobileMenuOpen && <div id="landing-mobile-menu" className="lg:hidden mt-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4 border-t border-b border-[rgba(251,237,224,0.10)] bg-[#0C0E17]/95 backdrop-blur-2xl shadow-2xl"><div className="flex flex-col space-y-1">
         {links.map(({ label, view }) => <button key={view} type="button" onClick={() => openSignIn(view)} className="px-4 py-2.5 rounded-2xl text-sm font-semibold text-[rgba(251,237,224,0.8)] hover:text-[#FBEDE0] hover:bg-white/[0.08] transition-all flex items-center justify-between"><span>{label}</span><ArrowRight className="w-3.5 h-3.5 opacity-50" /></button>)}
         <div className="pt-2 mt-2 border-t border-[rgba(251,237,224,0.10)] space-y-2">
-          {onDevLogin && (
-            <button
-              type="button"
-              onClick={() => { setMobileMenuOpen(false); onDevLogin(); }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#161926] border border-[#38F997]/50 text-[#38F997] font-semibold text-xs"
-            >
-              <Terminal className="w-4 h-4" />
-              <span>Developer Login (Instant Access)</span>
-            </button>
-          )}
           <button type="button" onClick={() => openSignIn()} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#161926] border border-[rgba(251,237,224,0.16)] text-[#FBEDE0] font-semibold text-xs"><GoogleIcon /><span>Sign in with Google</span></button>
           <button type="button" onClick={() => openSignIn('dashboard')} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#38F997] text-[#0C0E17] font-semibold text-xs"><span>Launch App</span><ArrowRight className="w-4 h-4" /></button>
         </div>

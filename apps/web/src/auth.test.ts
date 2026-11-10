@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { developerUser, readGoogleCredential } from "./auth";
+import { readGoogleCredential } from "./auth";
 
 function credential(payload: Record<string, unknown>) {
   const encode = (value: Record<string, unknown>) => btoa(JSON.stringify(value)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
@@ -21,11 +21,5 @@ describe("Google browser identity claims", () => {
     expect(() => readGoogleCredential(credential({ ...valid, exp: now / 1_000 - 1 }), clientId, now)).toThrow("expired");
     expect(() => readGoogleCredential(credential({ ...valid, email_verified: false }), clientId, now)).toThrow("verified Google account");
     expect(() => readGoogleCredential(credential({ ...valid, aud: "another-client" }), clientId, now)).toThrow("different client");
-  });
-
-  it("provides a valid developer user profile for local dev login", () => {
-    expect(developerUser.subject).toBe("developer");
-    expect(developerUser.email).toContain("@");
-    expect(developerUser.name).toBe("Developer");
   });
 });
