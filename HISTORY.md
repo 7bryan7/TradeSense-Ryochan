@@ -1445,3 +1445,13 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: typecheck passed, lint passed, vitest 19 files / 87 tests passed. No browser or live run.
 - External side effects: git push to origin/main (1a333d8).
 - Outcome / next step: Repo contains only .env.example; old DB versions remain in git history (no keys found in them).
+
+## 20261110-173719-claude-deploy-config
+
+- Recorded at: 2026-11-10 17:37:19 UTC.
+- Agent: Claude Code (Opus 5.5).
+- Task: Remove developer login; prepare Vercel (web) + Render (API, SQLite on persistent disk) deployment.
+- Actions: Restored Google-only sign-in (auth.ts, auth.test.ts, LandingSignInModal.tsx from eae606e; removed Dev Login from LandingNav/LandingPage). Added render.yaml (starter plan, 1 GB disk at /var/data, secrets as sync:false) and vercel.json (web build, /api rewrite to https://tradesense-api.onrender.com, SPA fallback). Moved Windows-only @rolldown binding to optionalDependencies so Linux installs succeed.
+- Verification: typecheck, lint passed; vitest 19 files / 86 tests passed; local web build passed. No deployment performed by agent (no CLI/account access).
+- External side effects: git push to origin/main.
+- Outcome / next step: User creates Render Blueprint and Vercel project from GitHub, enters secrets in dashboards, then supplies Google Client ID.

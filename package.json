@@ -34,7 +34,7 @@
     "typescript-eslint": "latest",
     "vitest": "latest"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "@rolldown/binding-win32-x64-msvc": "^1.2.14"
   }
 }
