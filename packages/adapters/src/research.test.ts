@@ -3,6 +3,30 @@ import { describe, expect, it, vi } from "vitest";
 import { RyoRestAdapter } from "./index.js";
 
 describe("RyoRestAdapter", () => {
+  it.each([
+    ["UNABLE_TO_VERIFY_LEAF_SIGNATURE", "RYO_TLS_ERROR", false, "certificate verification failed"],
+    ["SELF_SIGNED_CERT_IN_CHAIN", "RYO_TLS_ERROR", false, "certificate verification failed"],
+    ["ENOTFOUND", "RYO_DNS_ERROR", true, "Cannot resolve"],
+    ["EAI_AGAIN", "RYO_DNS_ERROR", true, "Cannot resolve"],
+    ["UND_ERR_CONNECT_TIMEOUT", "RYO_TIMEOUT", true, "timed out"],
+    ["ECONNRESET", "RYO_CONNECTION_FAILED", true, "Could not connect"],
+  ])("classifies %s without exposing transport details", async (transportCode, code, retryable, message) => {
+    const fetcher = vi.fn().mockRejectedValue(Object.assign(new TypeError("fetch failed: secret-key https://private-provider.example"), {
+      cause: { code: transportCode },
+    }));
+    const adapter = new RyoRestAdapter("https://example.com/api/mcp", "secret-key", fetcher);
+    const error = await adapter.call("analyze_token", { symbol: "SOL" }).catch((value: unknown) => value);
+    expect(error).toMatchObject({ code, retryable, message: expect.stringContaining(message) });
+    expect((error as Error).message).not.toMatch(/secret-key|private-provider|fetch failed/);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("identifies the request deadline without a transport cause", async () => {
+    const fetcher = vi.fn().mockRejectedValue(new DOMException("deadline exceeded", "TimeoutError"));
+    await expect(new RyoRestAdapter("https://example.com", "secret-key", fetcher).call("analyze_token"))
+      .rejects.toMatchObject({ status: 503, code: "RYO_TIMEOUT", retryable: true });
+  });
+
   it("provides an explicitly synthetic timestamped fixture series", async () => {
     const result = await new FixtureResearchAdapter().call("analyze_token", { symbol: "SOL" });
     const candles = result.data.candles as Array<Record<string, unknown>>;

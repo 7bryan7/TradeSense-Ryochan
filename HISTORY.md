@@ -1072,3 +1072,81 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: Health, identity, and catalog returned HTTP 200; identity includes `tools:read` and catalog lists six tools. At 10:43–10:44 UTC, overview returned HTTP 200/live/partial with null capitalization, volume, dominance, breadth, sentiment, and movers. Scan returned HTTP 200/unknown/unavailable with zero candidates. ETH analysis returned HTTP 400 `VALIDATION_FAILED: couldn't analyze ETH right now` (trace `58d1dd86a6dd459883672fdb2a6f8909`); deep analysis returned HTTP 400/current USD market data unavailable (trace `81cdf48138104a2ea195617848aeb583`); comparison returned HTTP 400/insufficient current USD data (trace `63d2f23398314c578d3c9ce9541aaf76`). Sentiment monitoring returned HTTP 200/unknown/unavailable and an upstream-unavailable warning. General rate-limit remaining was 55–58; no 401, 403, or 429 occurred. Initial sandbox requests failed DNS resolution; approved network execution completed the checks. No application tests or model inference were run.
 - External side effects: Nine authenticated read-only RYO requests (three gateway checks and six tool calls); no Gemini/Tavily call, trade, ledger mutation, deployment, or publication.
 - Outcome / next step: RYO gateway and credentials work, but usable market observations are currently degraded across the six-tool surface. Exact upstream cause is undisclosed; the evidence does not establish gateway overload or service launch status.
+
+### 20261021T085600Z-root-node22-run-diagnosis — Diagnose Node version requirement and run prerequisites
+
+- Recorded at: 2026-10-21 08:56:00 UTC.
+- Agent: Antigravity assistant.
+- Task: Diagnose `ERR_UNKNOWN_BUILTIN_MODULE: No such built-in module: node:sqlite` and guide the user on how to run TradeSense.
+- Actions: Inspected `package.json`, `README.md`, and `apps/server/src/db.ts`. Confirmed that TradeSense requires Node.js >= 22.13.0 for the built-in `node:sqlite` DatabaseSync client. Discovered that the user's default Node is v20.18.0, but Node v22.23.2 is already available on the system at `C:\Users\joser\AppData\Local\Temp\aegispay-node-22.23.2\node.exe`. Tested `npm run doctor` with PATH prepending Node 22; it passed with exit code 0 and confirmed database and live credentials are ready.
+- Files: `HISTORY.md`.
+- Verification: `npm run doctor` under Node v22.23.2 succeeded with exit code 0.
+- External side effects: Local diagnostic command execution only. No live API inference, trades, or ledger mutations occurred.
+- Outcome / next step: Advised user on how to run TradeSense by either installing Node.js 22 LTS or prepending the existing Node 22 binary to PATH before running `npm run dev`.
+
+### 20261021T090400Z-root-node22-install-and-path — Download Node 22.23.3, configure PATH, and verify build/tests
+
+- Recorded at: 2026-10-21 09:04:00 UTC.
+- Agent: Antigravity assistant.
+- Task: Download Node 22, install it locally, configure PATH across shells, and verify execution.
+- Actions: Downloaded official `node-v22.23.3-win-x64.zip` from nodejs.org and extracted it to `C:\Users\joser\AppData\Local\Programs\node22`. Configured Windows User environment variable `PATH`, `.bashrc`, and `.bash_profile` (without BOM) in `C:\Users\joser` so Git Bash automatically prioritizes Node v22.23.3, and updated PowerShell profile scripts. Installed missing optional native binding `@rolldown/binding-win32-x64-msvc` for Vite 8.3.0 web builds. Ran full static build and unit tests.
+- Files: `C:\Users\joser\.bashrc`, `C:\Users\joser\.bash_profile`, `package.json`, `package-lock.json`, `HISTORY.md`.
+- Verification: `npm run doctor` passed reporting Node v22.23.3 and live readiness. `npm run build` passed with all four packages compiled and Vite client output generated. `npm test` ran all 19 test files and 79 tests with 100% pass rate.
+- External side effects: Downloaded Node.js 22 release zip from nodejs.org; installed `@rolldown/binding-win32-x64-msvc` npm package. No live API inference, trades, or external mutations occurred.
+- Outcome / next step: Environment is fully configured for Node 22. User can run `npm run dev` in a new terminal or after sourcing `.bashrc`.
+
+
+### 20261022T090931Z-root-landing-interactions — Repair landing spacing and interactions
+
+- Recorded at: 2026-10-22 09:09:31 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Fix crowded landing navigation, the transition between the two sections, and Research workflow hover effects.
+- Actions: Read project guidance, README, latest history, landing components, styles, scripts, and browser configuration. Found scoped resets overriding utility spacing, button backgrounds/borders, and hover colors. Lowered reset specificity, restored a 16px root scale, moved desktop navigation to the wider breakpoint, reduced duplicate entry controls at intermediate widths, kept header dimensions stable on scroll, and added menu state, Escape dismissal, and constrained menu scrolling. Extended the video-section fade, removed its hard divider, and began loading the lower video before it enters view. Added bounded workflow color transitions, distinct selected/hover states in both themes, focus outlines, pressed-state semantics, a minimum panel height, wrapping rule text, and reduced-motion styles. Used a unique hero class after identifying a legacy class collision during visual review.
+- Files: `apps/web/src/components/LandingPage.tsx`; `apps/web/src/components/landing/LandingNav.tsx`; `apps/web/src/landing-reference.css`; `HISTORY.md`. Preserved existing package/lockfile/history changes.
+- Verification: ESLint passed. Web TypeScript and Vite production build passed. A subsequent web TypeScript check passed after menu refinements. Source-file whitespace checks passed; the initial whole-tree check reported pre-existing trailing blank lines in HISTORY.md. Background local browser review checked desktop and 390x844 mobile layouts, workflow selection, both themes, and mobile menu open/close including Escape. Full automated Playwright journey and unit tests were not run for these presentation changes; the checked-in Playwright configuration uses a Linux browser executable path.
+- External side effects: Read-only local page preview and local compilation only. No sign-in, live research/inference, paper trade, deployment, or publication.
+- Outcome / next step: Landing navigation and workflow controls have restored spacing and interaction styles, with a softer video-section boundary.
+
+### 20261022T091645Z-root-remove-landing-bottom-cta — Remove bottom CTA banner from landing page
+
+- Recorded at: 2026-10-22 09:16:45 UTC.
+- Agent: Antigravity assistant.
+- Task: Remove the "Experience Autonomous Trading Intelligence" bottom CTA banner and "Launch TradeSense Terminal" button from the landing page.
+- Actions: Located and removed the `<section className="pb-24 pt-4 ...">` bottom CTA banner in `apps/web/src/components/LandingPage.tsx`. Confirmed that preceding sections maintain appropriate spacing and that unused imports were not left dangling.
+- Files: `apps/web/src/components/LandingPage.tsx`; `HISTORY.md`.
+- Verification: `npm run typecheck`, `npm test` (19 test files, 79 tests passed), and `npm run build` (full Vite production bundle) all exited with code 0.
+- External side effects: Local compilation and test execution only. No provider inference, trades, or ledger mutations occurred.
+- Outcome / next step: The requested hero/banner text and button have been removed cleanly from the landing page.
+
+### 20261022T092700Z-root-developer-login — Add developer login option to access the dashboard
+
+- Recorded at: 2026-10-22 09:27:00 UTC.
+- Agent: Antigravity assistant.
+- Task: Add a developer login option so the dashboard can be accessed immediately while keeping Google sign-in available for later OAuth integration.
+- Actions: Added `developerUser` export in `apps/web/src/auth.ts`. Enhanced `LandingSignInModal.tsx` with a prominent "Enter as Developer" action alongside the existing Google sign-in component. Added a direct "Dev Login" action to `LandingNav.tsx` desktop and mobile navigation bars for 1-click dashboard entry. Added unit tests for developer authentication in `apps/web/src/auth.test.ts`.
+- Files: `apps/web/src/auth.ts`, `apps/web/src/auth.test.ts`, `apps/web/src/components/landing/LandingSignInModal.tsx`, `apps/web/src/components/landing/LandingNav.tsx`, `apps/web/src/components/LandingPage.tsx`, `HISTORY.md`.
+- Verification: `npm run typecheck`, `npm test` (19 test files, 80 tests passed), and `npm run build` (Vite bundle built successfully) all passed with code 0.
+- External side effects: Local compilation and test execution only. No real trades, provider API costs, or database mutations occurred.
+- Outcome / next step: Users can now immediately click "Dev Login" in the header or "Enter as Developer" in the sign-in modal to enter and view the full TradeSense dashboard without waiting for Google OAuth credentials.
+
+### 20261022-root-analyze-transport — Diagnose Analyze fetch failure and expose safe connection errors
+
+- Recorded at: 2026-10-22 14:31:03 UTC.
+- Agent: Codex primary agent (`/root`).
+- Task: Investigate the Analyze action reporting “Something needs attention / fetch failed”; retain the current dashboard design.
+- Actions: Inspected the current API/frontend/provider boundaries, latest history, and read-only saved failure metadata. Recent SOL runs failed during FETCHING with RUN_FAILED / fetch failed. A sandbox public-health check failed DNS resolution. Approved checks outside the sandbox resolved RYO, but Node reported UNABLE_TO_VERIFY_LEAF_SIGNATURE, including with system CA trust enabled. Windows curl reported SEC_E_UNTRUSTED_ROOT and PowerShell HTTPS reported PartialChain. These observations establish a certificate-chain validation failure from this machine; they do not distinguish provider chain configuration from local network/trust configuration. Added safe, specific RYO TLS/DNS/timeout/connection errors, preserving TLS verification and exposing no raw transport details or credentials. Added regression tests and troubleshooting guidance. Earlier dashboard brainstorming inspected the existing Overview source and official hackathon site and produced one illustrative dark UI concept; a second image request was interrupted when the user changed scope. No dashboard redesign was applied.
+- Files: `packages/adapters/src/index.ts`; `packages/adapters/src/research.test.ts`; `README.md`; `HISTORY.md`. Preserved other agents’ existing work.
+- Verification: Targeted adapter suite passed 11 tests. Full TypeScript checks, lint, and affected-file whitespace checks passed. The first full offline suite failed before executing tests due to sandbox temporary-file/database access; approved execution outside the sandbox passed all 19 files and 87 tests. Package compilation passed. No complete live analysis or browser Analyze rerun was performed.
+- External side effects: Bounded unauthenticated public RYO health connection attempts, plus earlier official-site research and one illustrative generated image. No authenticated RYO tool request, Gemini/Tavily inference, live research cost, ledger mutation, trade, publication, or deployment.
+- Outcome / next step: Generic errors are now actionable after backend reload, but live Analyze remains blocked until a valid trusted HTTPS certificate chain is available from this machine. No certificate bypass, trust-store modification, alternate provider origin, or synthetic success was introduced.
+
+## 20261110-170148-claude-submission-review
+
+- Recorded at: 2026-11-10 17:01:48 UTC.
+- Agent: Claude Code (Opus 5.5).
+- Task: Read-only project analysis to prepare RYO-CHAN Hackathon submission answers.
+- Actions: Read README, package.json scripts, workspace layout, latest HISTORY entry, git remote.
+- Files: HISTORY.md only.
+- Verification: None run (read-only review).
+- External side effects: None.
+- Outcome / next step: Summary given to user; will help fill submission fields.

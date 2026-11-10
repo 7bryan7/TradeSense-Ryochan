@@ -1,18 +1,45 @@
-:root.reference-landing-active { font-size: 19.2px; }
+:root.reference-landing-active { font-size: 16px; }
 .reference-landing {
   color-scheme: dark;
   font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   line-height: 1.5;
 }
-.reference-landing h1,
-.reference-landing h2,
-.reference-landing h3,
-.reference-landing p { margin: 0; }
-.reference-landing button { margin: 0; padding: 0; border: 0 solid transparent; color: inherit; background: transparent; text-transform: none; }
+/* Keep resets below utility specificity so spacing and interaction styles work. */
+:where(.reference-landing) :where(h1, h2, h3, p) { margin: 0; }
+:where(.reference-landing) :where(button) { margin: 0; padding: 0; border: 0 solid transparent; color: inherit; background: transparent; text-transform: none; }
 .reference-landing img,
 .reference-landing video { display: block; max-width: 100%; }
 
 @tailwind utilities;
+
+.reference-landing .landing-nav-inner { gap: 24px; min-height: 40px; }
+.reference-landing .landing-nav-inner > button,
+.reference-landing .landing-nav-actions { flex-shrink: 0; }
+.reference-landing .landing-nav-inner nav button { white-space: nowrap; }
+.reference-landing #landing-mobile-menu { max-height: calc(100svh - 80px); overflow-y: auto; }
+.reference-landing .reference-hero { min-height: 100svh; }
+.reference-landing .landing-lower { border-top: 0; }
+.reference-landing .landing-lower::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 180px;
+  background: linear-gradient(to bottom, #0C0E17, transparent);
+  pointer-events: none;
+}
+.reference-landing .workflow-stage { min-height: 108px; transition: background-color .18s, border-color .18s; }
+.reference-landing .workflow-stage:focus-visible,
+.reference-landing .landing-nav-inner button:focus-visible { outline: 2px solid #38F997; outline-offset: 4px; }
+.reference-landing .workflow-panel { min-height: 340px; }
+.reference-landing .workflow-rule { flex-wrap: wrap; gap: 8px 16px; }
+:root[data-theme="light"] .reference-landing .landing-lower::before { background: linear-gradient(to bottom, #f3f7f5, transparent); }
+:root[data-theme="light"] .reference-landing .workflow-stage[aria-pressed="true"] { background: #e0f3e8; border-color: #247a4a; }
+@media (hover: hover) {
+  .reference-landing .workflow-stage:hover { background: #1c2433; border-color: #6b927f; }
+  .reference-landing .workflow-stage[aria-pressed="true"]:hover { background: #1b2c29; border-color: #38F997; }
+  :root[data-theme="light"] .reference-landing .workflow-stage:hover { background: #eaf3ee; border-color: #759b85; }
+  :root[data-theme="light"] .reference-landing .workflow-stage[aria-pressed="true"]:hover { background: #d4ecde; border-color: #247a4a; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reference-landing *, .reference-landing *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
 
 .reference-landing .bg-grid-pattern {
   background-image: linear-gradient(rgba(251,237,224,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(251,237,224,.025) 1px, transparent 1px);

@@ -3,8 +3,13 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "engines": { "node": ">=22.13.0" },
-  "workspaces": ["apps/*", "packages/*"],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "build:packages": "npm run build -w @tradesense/core && npm run build -w @tradesense/adapters",
     "build": "npm run build:packages && npm run build -w @tradesense/server && npm run build -w @tradesense/web",
@@ -28,5 +33,8 @@
     "typescript": "latest",
     "typescript-eslint": "latest",
     "vitest": "latest"
+  },
+  "dependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.2.14"
   }
 }

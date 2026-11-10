@@ -7,6 +7,12 @@ export type GoogleUser = {
   picture?: string;
 };
 
+export const developerUser: GoogleUser = {
+  subject: "developer",
+  email: "developer@tradesense.local",
+  name: "Developer",
+};
+
 
 type GoogleIdentityClaims = {
   aud?: string | string[];

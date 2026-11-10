@@ -24,12 +24,40 @@ export class RyoRestAdapter implements ResearchAdapter {
   constructor(private readonly baseUrl: string, private readonly key: string, private readonly fetcher: typeof fetch = fetch) {}
 
   async call(tool: RyoTool, args: Record<string, unknown> = {}): Promise<Evidence> {
-    const response = await this.fetcher(`${this.baseUrl.replace(/\/$/, "")}/tools/${tool}/call`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
-      body: JSON.stringify(args),
-      signal: AbortSignal.timeout(60_000),
-    });
+    let response: Response;
+    try {
+      response = await this.fetcher(`${this.baseUrl.replace(/\/$/, "")}/tools/${tool}/call`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(args),
+        signal: AbortSignal.timeout(60_000),
+      });
+    } catch (error) {
+      // Provider URLs, credentials, and raw transport errors must stay out of UI errors.
+      const failure = error as { name?: string; code?: string; cause?: { code?: string } } | null;
+      const transportCode = failure?.cause?.code ?? failure?.code;
+      const certificateCodes = new Set([
+        "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+        "SELF_SIGNED_CERT_IN_CHAIN", "DEPTH_ZERO_SELF_SIGNED_CERT", "CERT_HAS_EXPIRED",
+        "CERT_NOT_YET_VALID", "ERR_TLS_CERT_ALTNAME_INVALID", "UNABLE_TO_GET_ISSUER_CERT",
+      ]);
+      if (transportCode && certificateCodes.has(transportCode)) {
+        throw Object.assign(new Error("Cannot establish a trusted HTTPS connection to RYO: certificate verification failed. Check the provider certificate chain and this machine's trusted certificates. Live research is unavailable."), {
+          status: 502, code: "RYO_TLS_ERROR", retryable: false,
+        });
+      }
+      if (transportCode === "ENOTFOUND" || transportCode === "EAI_AGAIN") {
+        throw Object.assign(new Error("Cannot resolve the RYO server address. Check this machine's internet connection and DNS settings. Live research is unavailable."), {
+          status: 503, code: "RYO_DNS_ERROR", retryable: true,
+        });
+      }
+      const timedOut = failure?.name === "TimeoutError" || transportCode === "ETIMEDOUT" || transportCode === "UND_ERR_CONNECT_TIMEOUT";
+      throw Object.assign(new Error(timedOut
+        ? "The connection to RYO timed out. Live research is unavailable; try again later."
+        : "Could not connect to RYO. Check the network connection and provider availability before trying again."), {
+        status: 503, code: timedOut ? "RYO_TIMEOUT" : "RYO_CONNECTION_FAILED", retryable: true,
+      });
+    }
     if (!response.ok) {
       const text = (await response.text()).slice(0, 4_000);
       let providerMessage = "The RYO research provider rejected the request.";

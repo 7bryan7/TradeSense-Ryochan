@@ -457,6 +457,8 @@ Required behavioral checks during implementation:
 
 | Symptom | Check first | Correct behavior |
 |---|---|---|
+| Analyze reports a RYO certificate error (previously `fetch failed`) | Provider HTTPS certificate chain and local trust/network configuration; Node may report `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, Windows may report `PartialChain` | Return `RYO_TLS_ERROR`; restore a valid trusted certificate chain before retrying. Keep TLS verification enabled. No research or paper fill is fabricated. |
+| RYO connection/DNS error or timeout | Server-side internet access, DNS, firewall/proxy configuration, and provider availability | Return `RYO_CONNECTION_FAILED`, `RYO_DNS_ERROR`, or `RYO_TIMEOUT`; preserve the failed run and its completed evidence. |
 | Empty market view | Actual provider coverage, parameters, quota, mode | Show no data or error; preserve prior snapshot with age |
 | Missing chart | Candle availability, units, timestamps | Show unavailable; never invent candles |
 | Decision cannot be parsed | Model output and schema validation | Bounded repair, then explicit failure |

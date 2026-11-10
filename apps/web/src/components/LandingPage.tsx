@@ -10,7 +10,7 @@ import {
   ExternalLink,
   Github,
 } from 'lucide-react';
-import type { GoogleUser } from '../auth';
+import { developerUser, type GoogleUser } from '../auth';
 import { LandingNav, HexLogo, type LandingDestination } from './landing/LandingNav';
 import { LandingSignInModal } from './landing/LandingSignInModal';
 import '../landing-reference.css';
@@ -35,7 +35,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
         setLoadLowerVideo(true);
         observer.disconnect();
       }
-    }, { threshold: 0.01 });
+    }, { threshold: 0.01, rootMargin: '400px 0px' });
     observer.observe(section);
     return () => observer.disconnect();
   }, []);
@@ -141,10 +141,10 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
       <div className="absolute top-96 -left-40 w-96 h-96 bg-[#00D2FF]/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Dynamic Glass Navbar (Hero Blending + Frosted Glass on Scroll) */}
-      <LandingNav onSignIn={handleLaunchApp} />
+      <LandingNav onSignIn={handleLaunchApp} onDevLogin={() => onSignedIn(developerUser, 'dashboard')} />
 
       {/* Hero Section (Fills full viewport height down to the bottom of the screen) */}
-      <section className="relative z-10 isolate overflow-hidden min-h-screen min-h-[100dvh] flex flex-col justify-center pt-24 pb-14">
+      <section className="reference-hero relative z-10 isolate overflow-hidden flex flex-col justify-center pt-24 pb-14">
         <video
           className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90"
           autoPlay
@@ -158,7 +158,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
           <source src="/assets/video/hero-optimized.mp4" type="video/mp4" />
         </video>
         <div className="absolute inset-0 -z-10 bg-[#0C0E17]/35" aria-hidden="true" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0C0E17] to-transparent -z-10 pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#0C0E17] to-transparent -z-10 pointer-events-none" />
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center my-auto">
           {/* Market Intelligence Pill */}
@@ -199,7 +199,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
       </section>
 
       {/* Middle & Lower Sections with Cinematic Floating Crypto Video Background (5-Stage Architecture, Value Pillars, CTA Banner) */}
-      <div ref={lowerVideoSection} className="relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
+      <div ref={lowerVideoSection} className="landing-lower relative isolate overflow-hidden border-t border-[rgba(251,237,224,0.08)]">
         {/* Background Video: Floating 3D Golden Crypto Coins */}
         {loadLowerVideo && <video
           className="absolute inset-0 -z-10 h-full w-full object-cover opacity-90 pointer-events-none"
@@ -238,8 +238,10 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
                 key={stage.step}
                 type="button"
                 onClick={() => setActiveStage(idx)}
-                className={`p-3 rounded-xl text-left font-mono transition-all duration-200 border flex flex-col justify-between gap-2 relative overflow-hidden group ${isActive
-                  ? 'bg-[#161A29] border-[#38F997]/60 shadow-[0_0_24px_rgba(56,249,151,0.15)] ring-1 ring-[#38F997]/30'
+                aria-pressed={isActive}
+                aria-controls="research-stage-panel"
+                className={`workflow-stage p-3 rounded-xl text-left font-mono border flex flex-col justify-between gap-2 relative overflow-hidden group ${isActive
+                  ? 'bg-[#161A29] border-[#38F997]/60'
                   : 'bg-[#10131F]/80 border-[rgba(251,237,224,0.08)] hover:border-[rgba(251,237,224,0.2)] hover:bg-[#141724]'
                   }`}
               >
@@ -268,7 +270,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
         </div>
 
         {/* Master Architectural Cockpit Card */}
-        <div className="rounded-2xl bg-[#101321]/90 border border-[rgba(251,237,224,0.12)] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div id="research-stage-panel" role="region" aria-label={`${pipelineStages[activeStage].title} research stage`} className="workflow-panel rounded-2xl bg-[#101321]/90 border border-[rgba(251,237,224,0.12)] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
           {/* Ambient Glow */}
           <div className="absolute -top-20 -right-20 w-80 h-80 bg-[#38F997]/5 rounded-full blur-[100px] pointer-events-none" />
 
@@ -298,7 +300,7 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
               </div>
 
               {/* Invariant Guarantee Box */}
-              <div className="p-3 rounded-xl bg-[#0B0D17] border border-[rgba(251,237,224,0.08)] flex items-center justify-between text-xs font-mono">
+              <div className="workflow-rule p-3 rounded-xl bg-[#0B0D17] border border-[rgba(251,237,224,0.08)] flex items-center justify-between text-xs font-mono">
                 <span className="text-[rgba(251,237,224,0.5)]">Deterministic Rule:</span>
                 <span className="text-[#38F997] font-medium">{pipelineStages[activeStage].invariants}</span>
               </div>
@@ -348,27 +350,6 @@ export const LandingPage: React.FC<{ googleClientId: string; onSignedIn: (user: 
           </div>
         </section>
 
-        {/* Bottom CTA Banner */}
-        <section className="pb-24 pt-4 px-4 sm:px-6 max-w-4xl mx-auto text-center relative z-10">
-          <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-[#161926]/90 via-[#1C2030]/90 to-[#141724]/90 backdrop-blur-xl border border-[rgba(251,237,224,0.18)] shadow-2xl space-y-6">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#FBEDE0]">
-              Experience Autonomous Trading Intelligence
-            </h2>
-            <p className="text-sm text-[rgba(251,237,224,0.7)] max-w-xl mx-auto">
-              Explore Bitcoin, Ethereum, and Solana with evidence-linked AI decisions, saved research, and 10 bps paper trading.
-            </p>
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => handleLaunchApp('dashboard')}
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-[#FBEDE0] hover:bg-white text-[#161823] font-bold text-sm shadow-xl transition-all hover:scale-105 cursor-pointer"
-              >
-                <span>Launch TradeSense Terminal</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
 
       {/* Footer */}
