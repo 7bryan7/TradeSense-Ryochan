@@ -1435,3 +1435,13 @@ This is the shared append-only record of work performed on TradeSense. Project i
 - Verification: None run (read-only review).
 - External side effects: None.
 - Outcome / next step: Summary given to user; will help fill submission fields.
+
+## 20261110-171429-claude-secret-check-and-push
+
+- Recorded at: 2026-11-10 17:14:29 UTC.
+- Agent: Claude Code (Opus 5.5).
+- Task: Verify no secrets in repo; push all work to origin (7bryan7/TradeSense-Ryochan) for hackathon submission.
+- Actions: Scanned tracked files, full git history and the tracked SQLite DB for Gemini/Tavily/OAuth/bearer key patterns (none found). Untracked apps/server/data/tradesense.sqlite and widened .gitignore to **/data/*.sqlite*. Committed local work, merged 3 teammate commits (resolved landing conflicts keeping both sides), restored ThemeToggle import.
+- Verification: typecheck passed, lint passed, vitest 19 files / 87 tests passed. No browser or live run.
+- External side effects: git push to origin/main (1a333d8).
+- Outcome / next step: Repo contains only .env.example; old DB versions remain in git history (no keys found in them).
